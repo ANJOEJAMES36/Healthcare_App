@@ -2,62 +2,42 @@
  * Format chart data with intelligent sampling and time formatting
  */
 export const formatChartData = (messages, selectedRange) => {
-    if (messages.length === 0) {
-        console.log('No messages to format for chart');
-        return [];
-    }
+    if (!messages || messages.length === 0) return [];
 
-    console.log(`Formatting ${messages.length} messages for chart`);
-
-    // Determine sampling rate based on data size
-    let sampleRate = 1;
     const dataPointsTarget = 100;
+    const sampleRate = messages.length > dataPointsTarget
+        ? Math.ceil(messages.length / dataPointsTarget)
+        : 1;
 
-    if (messages.length > dataPointsTarget) {
-        sampleRate = Math.ceil(messages.length / dataPointsTarget);
-    }
-
-    console.log(`Sample rate: ${sampleRate} (showing ~${Math.ceil(messages.length / sampleRate)} points)`);
-
-    // Sample and format data
     const sampledData = messages.filter((_, index) => index % sampleRate === 0);
 
-    const formatted = sampledData.map(msg => {
+    return sampledData.map(msg => {
         const date = new Date(msg.timestamp);
         let timeLabel;
 
-        // Format time based on selected range
         if (selectedRange === '10min' || selectedRange === '30min') {
             timeLabel = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         } else if (selectedRange === '1hr' || selectedRange === '4hr') {
             timeLabel = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
         } else {
-            timeLabel = date.toLocaleString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
+            timeLabel = date.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
         }
 
         return {
             time: timeLabel,
-            temperature: msg.temperature,
-            heartRate: msg.heartRate,
-            spo2: msg.spo2,
-            bloodPressure: msg.bloodPressure
+            temperature: msg.temperature ?? null,
+            heartRate: msg.heartRate ?? null,
+            spo2: msg.spo2 ?? null,
+            bloodPressure: msg.bloodPressure ?? null
         };
     }).reverse();
-
-    console.log('Chart data formatted:', formatted.slice(0, 3), '... (showing first 3)');
-    return formatted;
 };
 
 /**
  * Determine warning status based on value and thresholds
  */
 export const getWarningStatus = (value, metric, thresholds) => {
-    if (!value || !thresholds[metric]) return 'normal';
+    if (value == null || !thresholds?.[metric]) return 'normal';
     const { low, high } = thresholds[metric];
     if (value < low || value > high) return 'danger';
     if (value <= low + (high - low) * 0.1 || value >= high - (high - low) * 0.1) return 'warning';

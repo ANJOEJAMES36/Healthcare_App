@@ -28,22 +28,22 @@ const DataTable = ({ messages }) => {
                             </td>
                         </tr>
                     ) : (
-                        messages.slice(0, 20).map((msg, index) => (
-                            <tr key={index} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                        messages.slice(0, 20).map((msg) => (
+                            <tr key={msg._id || msg.timestamp} style={{ borderBottom: '1px solid var(--border-color)' }}>
                                 <td style={{ padding: '12px', color: 'var(--text-primary)' }}>
                                     {new Date(msg.timestamp).toLocaleString()}
                                 </td>
                                 <td style={{ padding: '12px', color: 'var(--accent-temperature)', fontWeight: '600' }}>
-                                    {msg.temperature}°C
+                                    {msg.temperature !== undefined ? `${msg.temperature}°C` : '--'}
                                 </td>
                                 <td style={{ padding: '12px', color: 'var(--accent-heart)', fontWeight: '600' }}>
-                                    {msg.heartRate} bpm
+                                    {msg.heartRate !== undefined ? `${msg.heartRate} bpm` : '--'}
                                 </td>
                                 <td style={{ padding: '12px', color: 'var(--accent-spo2)', fontWeight: '600' }}>
-                                    {msg.spo2}%
+                                    {msg.spo2 !== undefined ? `${msg.spo2}%` : '--'}
                                 </td>
                                 <td style={{ padding: '12px', color: 'var(--accent-bp)', fontWeight: '600' }}>
-                                    {msg.bloodPressure} mmHg
+                                    {msg.bloodPressure !== undefined ? `${msg.bloodPressure} mmHg` : '--'}
                                 </td>
                             </tr>
                         ))
