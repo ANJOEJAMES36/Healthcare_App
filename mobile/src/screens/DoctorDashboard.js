@@ -26,7 +26,7 @@ const DoctorDashboard = ({ route, navigation }) => {
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <Text style={styles.welcomeText}>Dr. {user.name || 'Smith'}</Text>
+                <Text style={styles.welcomeText}>{user.name || 'Dr. Smith'}</Text>
                 <TouchableOpacity onPress={handleLogout}>
                     <Text style={styles.logoutText}>Logout</Text>
                 </TouchableOpacity>
