@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Replace with your actual local IP address when testing on physical device
 // For Android Emulator, use 'http://10.0.2.2:5000'
-const API_URL = 'http://192.168.1.3:5000/api';
+const API_URL = 'https://health-care-app-iot.onrender.com/api';
 
 export const getLatestData = async (userId) => {
     try {

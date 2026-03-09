@@ -16,7 +16,7 @@ const formatDisplayName = (name) => {
 };
 
 // Get IP from DataService since we updated it there previously
-const SOCKET_URL = 'http://192.168.1.3:5000';
+const SOCKET_URL = 'https://health-care-app-iot.onrender.com';
 
 const UserDashboard = ({ route, navigation }) => {
     // The login success object contains the token and the actual user object nested inside

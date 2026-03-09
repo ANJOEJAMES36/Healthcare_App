@@ -7,7 +7,7 @@ import { getHistoricalData, getLatestData } from '../services/DataService';
 const screenWidth = Dimensions.get('window').width;
 
 // Replace with your actual local IP address
-const SOCKET_URL = 'http://192.168.1.3:5000';
+const SOCKET_URL = 'https://health-care-app-iot.onrender.com';
 
 // Helper to format names like 'user2' to 'User 2'
 const formatDisplayName = (name) => {
