@@ -37,7 +37,12 @@ const ChartCard = ({ title, data, dataKey, color, domain, unit, timeRange }) => 
     // Derive a safe Y-axis domain
     const yDomain = domain || METRIC_DOMAINS[dataKey] || ['auto', 'auto'];
 
-    if (!data || data.length === 0) {
+    // For motion chart, only show rows that have an actual motion value
+    const chartData = dataKey === 'motion'
+        ? data.filter(d => d.motion != null)
+        : data;
+
+    if (!chartData || chartData.length === 0) {
         return (
             <div style={{
                 background: 'var(--bg-card)',
@@ -65,7 +70,7 @@ const ChartCard = ({ title, data, dataKey, color, domain, unit, timeRange }) => 
         }}>
             <h3 style={{ marginBottom: '20px', color }}>{title}</h3>
             <ResponsiveContainer width="100%" height={250}>
-                <LineChart data={data}>
+                <LineChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                     <XAxis
                         dataKey="time"
@@ -106,11 +111,11 @@ const ChartCard = ({ title, data, dataKey, color, domain, unit, timeRange }) => 
                         }}
                     />
                     <Line
-                        type="monotone"
+                        type={dataKey === 'motion' ? 'stepAfter' : 'monotone'}
                         dataKey={dataKey}
                         stroke={color}
                         strokeWidth={3}
-                        dot={false}
+                        dot={dataKey === 'motion'}
                         isAnimationActive={false}
                     />
                 </LineChart>

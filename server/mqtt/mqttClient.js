@@ -91,13 +91,14 @@ const setupMQTT = (io) => {
             });
 
             const savedData = await newData.save();
-            console.log(`💾 Saved data for ${userId}:`, savedData);
+            const plainData = savedData.toObject();
+            console.log(`💾 Saved data for ${userId}:`, plainData);
 
             // Emit to user's personal room only
-            io.to(userId).emit('mqtt-message', savedData);
+            io.to(userId).emit('mqtt-message', plainData);
 
             // Also broadcast to admins if needed
-            io.to('admin').emit('mqtt-message', savedData);
+            io.to('admin').emit('mqtt-message', plainData);
 
         } catch (error) {
             console.error('❌ Error processing MQTT message:', error);

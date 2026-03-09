@@ -14,18 +14,20 @@ export const formatChartData = (messages) => {
 
     const sampledData = sorted.filter((_, index) => index % sampleRate === 0);
 
+    const MOTION_MAP = { sleep: 0, sit: 1, walk: 2 };
+
     return sampledData.map(msg => {
         const date = new Date(msg.timestamp);
-        const MOTION_MAP = { sleep: 0, sit: 1, walk: 2 };
+        const motionNum = msg.motion != null ? (MOTION_MAP[msg.motion] ?? null) : null;
         return {
             time: date.getTime(),          // numeric Unix ms — ChartCard tickFormatter handles display
             temperature: msg.temperature ?? null,
             heartRate: msg.heartRate ?? null,
             spo2: msg.spo2 ?? null,
-            motion: msg.motion != null ? (MOTION_MAP[msg.motion] ?? null) : null,
+            motion: motionNum,
             motionLabel: msg.motion ?? null   // raw string for tooltip
         };
-    });
+    }).filter(d => d.time > 0);  // remove any bad timestamps
 };
 
 /**
