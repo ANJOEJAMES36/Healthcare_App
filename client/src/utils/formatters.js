@@ -4,12 +4,15 @@
 export const formatChartData = (messages) => {
     if (!messages || messages.length === 0) return [];
 
+    // Always sort ascending (oldest → newest) so chart renders left → right
+    const sorted = [...messages].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
     const dataPointsTarget = 100;
-    const sampleRate = messages.length > dataPointsTarget
-        ? Math.ceil(messages.length / dataPointsTarget)
+    const sampleRate = sorted.length > dataPointsTarget
+        ? Math.ceil(sorted.length / dataPointsTarget)
         : 1;
 
-    const sampledData = messages.filter((_, index) => index % sampleRate === 0);
+    const sampledData = sorted.filter((_, index) => index % sampleRate === 0);
 
     return sampledData.map(msg => {
         const date = new Date(msg.timestamp);

@@ -1,9 +1,18 @@
 import PropTypes from 'prop-types';
 import { getWarningStatus, getStatusColor } from '../utils/formatters';
 
-const MetricCard = ({ title, value, unit, emoji, accentColor, metric, thresholds }) => {
-    const status = getWarningStatus(value, metric, thresholds);
+// Map motion strings to display labels
+const MOTION_DISPLAY = { sit: '🪑 Sit', walk: '🚶 Walk', sleep: '😴 Sleep' };
+
+const MetricCard = ({ title, value, unit, emoji, accentColor, metric, thresholds, isOffline }) => {
+    const status = typeof value === 'number' ? getWarningStatus(value, metric, thresholds) : 'normal';
     const borderColor = getStatusColor(status);
+
+    // For motion, map the string to a readable label
+    const isMotion = metric === 'motion';
+    const displayValue = isMotion
+        ? (value ? MOTION_DISPLAY[value] || value : '--')
+        : (value != null ? value : '--');
 
     return (
         <div style={{
@@ -13,7 +22,9 @@ const MetricCard = ({ title, value, unit, emoji, accentColor, metric, thresholds
             border: `2px solid ${borderColor}`,
             boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
             position: 'relative',
-            overflow: 'hidden'
+            overflow: 'hidden',
+            opacity: isOffline ? 0.7 : 1,
+            transition: 'opacity 0.3s'
         }}>
             <div style={{
                 position: 'absolute',
@@ -31,14 +42,23 @@ const MetricCard = ({ title, value, unit, emoji, accentColor, metric, thresholds
                 fontWeight: '500'
             }}>
                 {title}
+                {isOffline && value != null && (
+                    <span style={{ marginLeft: '6px', fontSize: '0.8em', color: 'var(--warning)' }}>(last known)</span>
+                )}
             </h3>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                <span style={{ fontSize: '3em', fontWeight: 'bold', color: accentColor }}>
-                    {value || '--'}
+                <span style={{
+                    fontSize: isMotion ? '1.8em' : '3em',
+                    fontWeight: 'bold',
+                    color: accentColor
+                }}>
+                    {displayValue}
                 </span>
-                <span style={{ fontSize: '1.2em', color: 'var(--text-secondary)' }}>{unit}</span>
+                {!isMotion && (
+                    <span style={{ fontSize: '1.2em', color: 'var(--text-secondary)' }}>{unit}</span>
+                )}
             </div>
-            {status !== 'success' && (
+            {status !== 'success' && typeof value === 'number' && (
                 <div style={{
                     marginTop: '12px',
                     padding: '6px 12px',
@@ -57,12 +77,17 @@ const MetricCard = ({ title, value, unit, emoji, accentColor, metric, thresholds
 
 MetricCard.propTypes = {
     title: PropTypes.string.isRequired,
-    value: PropTypes.number,
+    value: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     unit: PropTypes.string.isRequired,
     emoji: PropTypes.string.isRequired,
     accentColor: PropTypes.string.isRequired,
     metric: PropTypes.string.isRequired,
-    thresholds: PropTypes.object.isRequired
+    thresholds: PropTypes.object.isRequired,
+    isOffline: PropTypes.bool
+};
+
+MetricCard.defaultProps = {
+    isOffline: false
 };
 
 export default MetricCard;

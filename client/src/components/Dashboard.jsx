@@ -89,9 +89,9 @@ const Dashboard = ({ viewingUserId, userName, onBack }) => {
                     <MetricCard
                         key={key}
                         title={config.title}
-                        // Only show value when live MQTT data is arriving
-                        // Shows '--' when device is offline
-                        value={isLive ? latestData?.[key] : null}
+                        // Always display last known value; dim it when offline via connectionStatus
+                        value={latestData?.[key] ?? null}
+                        isOffline={!isLive}
                         unit={config.unit}
                         emoji={config.emoji}
                         accentColor={config.color}
