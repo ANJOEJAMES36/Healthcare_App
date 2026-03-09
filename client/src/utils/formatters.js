@@ -13,12 +13,14 @@ export const formatChartData = (messages) => {
 
     return sampledData.map(msg => {
         const date = new Date(msg.timestamp);
+        const MOTION_MAP = { sleep: 0, sit: 1, walk: 2 };
         return {
             time: date.getTime(),          // numeric Unix ms — ChartCard tickFormatter handles display
             temperature: msg.temperature ?? null,
             heartRate: msg.heartRate ?? null,
             spo2: msg.spo2 ?? null,
-            bloodPressure: msg.bloodPressure ?? null
+            motion: msg.motion != null ? (MOTION_MAP[msg.motion] ?? null) : null,
+            motionLabel: msg.motion ?? null   // raw string for tooltip
         };
     });
 };

@@ -17,7 +17,7 @@ const DataTable = ({ messages }) => {
                         <th style={{ padding: '12px', textAlign: 'left', color: 'var(--text-secondary)' }}>Temperature (°C)</th>
                         <th style={{ padding: '12px', textAlign: 'left', color: 'var(--text-secondary)' }}>Heart Rate (bpm)</th>
                         <th style={{ padding: '12px', textAlign: 'left', color: 'var(--text-secondary)' }}>SpO2 (%)</th>
-                        <th style={{ padding: '12px', textAlign: 'left', color: 'var(--text-secondary)' }}>Blood Pressure</th>
+                        <th style={{ padding: '12px', textAlign: 'left', color: 'var(--text-secondary)' }}>Motion</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -42,8 +42,12 @@ const DataTable = ({ messages }) => {
                                 <td style={{ padding: '12px', color: 'var(--accent-spo2)', fontWeight: '600' }}>
                                     {msg.spo2 !== undefined ? `${msg.spo2}%` : '--'}
                                 </td>
-                                <td style={{ padding: '12px', color: 'var(--accent-bp)', fontWeight: '600' }}>
-                                    {msg.bloodPressure !== undefined ? `${msg.bloodPressure} mmHg` : '--'}
+                                <td style={{ padding: '12px', color: 'var(--accent-bp)', fontWeight: '600', textTransform: 'capitalize' }}>
+                                    {msg.motion
+                                        ? (msg.motion === 'sit' ? '🪑 Sit'
+                                            : msg.motion === 'walk' ? '🚶 Walk'
+                                                : '😴 Sleep')
+                                        : '--'}
                                 </td>
                             </tr>
                         ))

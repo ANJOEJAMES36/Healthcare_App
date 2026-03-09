@@ -6,7 +6,7 @@ const DataSchema = new mongoose.Schema({
     temperature: Number,
     heartRate: Number,
     spo2: Number,
-    bloodPressure: Number,
+    motion: { type: String, enum: ['sit', 'walk', 'sleep'] },
     timestamp: { type: Date, default: Date.now, expires: 604800 } // TTL: 7 days
 });
 

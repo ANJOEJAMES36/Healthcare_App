@@ -188,6 +188,15 @@ const UserDashboard = ({ route, navigation }) => {
                         {liveData?.temperature ?? '--'} <Text style={styles.unit}>°C</Text>
                     </Text>
                 </View>
+                <View style={[styles.card, styles.dataCard]}>
+                    <Text style={styles.cardLabel}>Motion</Text>
+                    <Text style={[styles.cardValue, { color: '#a9e34b', fontSize: 18 }]}>
+                        {liveData?.motion === 'sit' ? '🪑 Sit'
+                            : liveData?.motion === 'walk' ? '🚶 Walk'
+                                : liveData?.motion === 'sleep' ? '😴 Sleep'
+                                    : '--'}
+                    </Text>
+                </View>
             </View>
 
             <View style={styles.qrCard}>

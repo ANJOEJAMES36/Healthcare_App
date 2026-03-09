@@ -11,9 +11,12 @@ const client = mqtt.connect(process.env.MQTT_BROKER_URL, {
 const topic = process.env.MQTT_TOPIC || 'esp32/health/data';
 
 const baseData = {
-    user1: { temperature: 36.5, heartRate: 72, spo2: 98, bloodPressure: 120 },
-    user2: { temperature: 37.1, heartRate: 88, spo2: 95, bloodPressure: 135 }
+    user1: { temperature: 36.5, heartRate: 72, spo2: 98 },
+    user2: { temperature: 37.1, heartRate: 88, spo2: 95 }
 };
+
+const MOTION_VALUES = ['sit', 'walk', 'sleep'];
+let motionIndex = { user1: 0, user2: 1 };
 
 const randomVariation = (base, range) => {
     return +(base + (Math.random() * range * 2 - range)).toFixed(1);
@@ -26,9 +29,10 @@ const publishForUser = (userId) => {
         temperature: randomVariation(base.temperature, 0.3),
         heartRate: Math.round(randomVariation(base.heartRate, 3)),
         spo2: Math.min(100, Math.round(randomVariation(base.spo2, 1))),
-        bloodPressure: Math.round(randomVariation(base.bloodPressure, 3)),
+        motion: MOTION_VALUES[motionIndex[userId] % MOTION_VALUES.length],
         timestamp: new Date().toISOString()
     });
+    motionIndex[userId]++;  // rotate through sit → walk → sleep each interval
 
     client.publish(topic, payload, { qos: 1 }, (err) => {
         if (err) {

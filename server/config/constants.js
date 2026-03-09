@@ -13,8 +13,7 @@ const TIME_RANGES = {
 const WARNING_THRESHOLDS = {
     temperature: { low: 36, high: 37.5 },
     heartRate: { low: 60, high: 100 },
-    spo2: { low: 95, high: 100 },
-    bloodPressure: { low: 90, high: 140 }
+    spo2: { low: 95, high: 100 }
 };
 
 module.exports = {

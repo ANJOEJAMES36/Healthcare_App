@@ -35,10 +35,10 @@ export const METRICS = {
         emoji: '💧',
         color: 'var(--accent-spo2)'
     },
-    bloodPressure: {
-        title: 'Blood Pressure',
-        unit: 'mmHg',
-        emoji: '🩺',
+    motion: {
+        title: 'Motion',
+        unit: '',
+        emoji: '🏃',
         color: 'var(--accent-bp)'
     }
 };

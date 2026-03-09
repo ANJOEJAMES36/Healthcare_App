@@ -181,6 +181,15 @@ const BystanderDashboard = ({ route, navigation }) => {
                         {liveData?.temperature ?? '--'} <Text style={styles.unit}>°C</Text>
                     </Text>
                 </View>
+                <View style={styles.card}>
+                    <Text style={styles.cardLabel}>Motion</Text>
+                    <Text style={[styles.cardValue, { color: '#a9e34b', fontSize: 16 }]}>
+                        {liveData?.motion === 'sit' ? '🪑 Sit'
+                            : liveData?.motion === 'walk' ? '🚶 Walk'
+                                : liveData?.motion === 'sleep' ? '😴 Sleep'
+                                    : '--'}
+                    </Text>
+                </View>
             </View>
 
             <View style={styles.toggleContainerWrapper}>

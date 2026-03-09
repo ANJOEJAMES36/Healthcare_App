@@ -86,7 +86,7 @@ const setupMQTT = (io) => {
                 temperature: parsedData.temperature,
                 heartRate: parsedData.heartRate,
                 spo2: parsedData.spo2,
-                bloodPressure: parsedData.bloodPressure || 120,
+                motion: parsedData.motion || 'sit',
                 timestamp: parsedData.timestamp ? new Date(parsedData.timestamp) : new Date()
             });
 
