@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, Dimensions, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
 import io from 'socket.io-client';
@@ -19,29 +19,44 @@ const BystanderDashboard = ({ route, navigation }) => {
     const [historicalData, setHistoricalData] = useState([]);
     const [timeRange, setTimeRange] = useState('10min');
     const [loading, setLoading] = useState(true);
+    const [connectionStatus, setConnectionStatus] = useState('Connecting...');
+    const liveTimeoutRef = useRef(null);
 
-   const fetchData = useCallback(async () => {
-    try {
-        const history = await getHistoricalData(userId, timeRange);
-        // Only update if we got data — keeps chart visible when device is offline
-        if (history && history.length > 0) {
-            setHistoricalData(history);
-        }
+    const fetchData = useCallback(async () => {
+        try {
+            const history = await getHistoricalData(userId, timeRange);
+            // Always update to clear chart if device sent no data for this range,
+            // but use JSON.stringify to prevent endless chart re-animations on identical offline data
+            if (history) {
+                setHistoricalData(prev => JSON.stringify(prev) === JSON.stringify(history) ? prev : history);
+            }
 
-        const latest = await getLatestData(userId);
-        // Only update if latest has actual data
-        if (latest && Object.keys(latest).length > 0) {
-            setLiveData(latest);
+            const latest = await getLatestData(userId);
+            // Only update if latest has actual data
+            if (latest && Object.keys(latest).length > 0) {
+                setLiveData(prev => JSON.stringify(prev) === JSON.stringify(latest) ? prev : latest);
+            } else {
+                setLiveData(null);
+            }
+        } catch (error) {
+            console.error('Fetch error:', error);
+        } finally {
+            setLoading(false);
         }
-    } catch (error) {
-        console.error('Fetch error:', error);
-    } finally {
-        setLoading(false);
-    }
-}, [userId, timeRange]);
+    }, [userId, timeRange]);
 
     useEffect(() => {
         fetchData();
+
+        const resetLiveTimeout = () => {
+            if (liveTimeoutRef.current) {
+                clearTimeout(liveTimeoutRef.current);
+            }
+            liveTimeoutRef.current = setTimeout(() => {
+                setConnectionStatus('Offline');
+                setLiveData(null);
+            }, 10000);
+        };
 
         // Pass userId in handshake query — matches updated backend
         const newSocket = io(SOCKET_URL, {
@@ -54,8 +69,10 @@ const BystanderDashboard = ({ route, navigation }) => {
 
         newSocket.on('connect', () => {
             console.log('✅ Bystander socket connected');
+            setConnectionStatus('Waiting for Data');
             // Join the user's room
             newSocket.emit('join', userId);
+            resetLiveTimeout();
         });
 
         newSocket.on('connect_error', (err) => {
@@ -67,13 +84,15 @@ const BystanderDashboard = ({ route, navigation }) => {
             console.log('📨 Live data received:', data);
             setLiveData(data);
             setHistoricalData(prev => [...prev, data].slice(-20));
+            setConnectionStatus('Live');
+            resetLiveTimeout();
         });
 
         // Backend emits 'initial-data' on connection
         newSocket.on('initial-data', (data) => {
-            if (data && data.length > 0) {
+            if (data) {
                 setHistoricalData(data);
-                setLiveData(data[0]);
+                if (data.length > 0) setLiveData(data[0]);
                 setLoading(false);
             }
         });
@@ -83,6 +102,7 @@ const BystanderDashboard = ({ route, navigation }) => {
         return () => {
             newSocket.disconnect();
             clearInterval(interval);
+            if (liveTimeoutRef.current) clearTimeout(liveTimeoutRef.current);
         };
     }, [userId, timeRange, fetchData]);
 
@@ -135,6 +155,16 @@ const BystanderDashboard = ({ route, navigation }) => {
                 <Text style={styles.headerTitle}>
                     Monitoring: {userName || formatDisplayName(userId)}
                 </Text>
+            </View>
+
+            {/* Connection Status Indicator */}
+            <View style={styles.statusContainer}>
+                <View style={[styles.statusDot,
+                connectionStatus === 'Live' ? { backgroundColor: '#06ffa5' } :
+                    connectionStatus === 'Waiting for Data' ? { backgroundColor: '#ffd32a' } :
+                        { backgroundColor: '#ff4757' }
+                ]} />
+                <Text style={styles.statusText}>{connectionStatus}</Text>
             </View>
 
             <View style={styles.liveContainer}>
@@ -197,6 +227,9 @@ const styles = StyleSheet.create({
     backButton: { width: 45, height: 45, borderRadius: 22.5, backgroundColor: '#1a1a2e', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#333' },
     backText: { color: 'white', fontSize: 24, fontWeight: 'bold', marginTop: -3 },
     headerTitle: { color: 'white', fontSize: 22, fontWeight: 'bold', marginLeft: 15 },
+    statusContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: -10, marginBottom: 15 },
+    statusDot: { width: 10, height: 10, borderRadius: 5, marginRight: 8 },
+    statusText: { color: '#ccc', fontSize: 14, fontWeight: 'bold' },
     liveContainer: { flexDirection: 'row', justifyContent: 'space-around', padding: 20 },
     card: { backgroundColor: '#1a1a2e', padding: 15, borderRadius: 12, alignItems: 'center', width: '30%', borderWidth: 1, borderColor: '#333' },
     cardLabel: { color: '#aaa', marginBottom: 5, fontSize: 12 },

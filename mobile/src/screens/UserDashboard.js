@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, ActivityIndicator } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { LineChart } from 'react-native-chart-kit';
@@ -23,6 +23,8 @@ const UserDashboard = ({ route, navigation }) => {
     const [historicalData, setHistoricalData] = useState([]);
     const [timeRange, setTimeRange] = useState('10min');
     const [loading, setLoading] = useState(true);
+    const [connectionStatus, setConnectionStatus] = useState('Connecting...');
+    const liveTimeoutRef = useRef(null);
 
     const handleLogout = async () => {
         await logoutUser(); // clear AsyncStorage
@@ -30,27 +32,39 @@ const UserDashboard = ({ route, navigation }) => {
     };
 
     const fetchData = useCallback(async () => {
-    try {
-        const history = await getHistoricalData(userId, timeRange);
-        // Only update if we got data — keeps chart visible when device is offline
-        if (history && history.length > 0) {
-            setHistoricalData(history);
-        }
+        try {
+            const history = await getHistoricalData(userId, timeRange);
+            // Always update to clear chart if device sent no data for this range,
+            // but use JSON.stringify to prevent endless chart re-animations on identical data
+            if (history) {
+                setHistoricalData(prev => JSON.stringify(prev) === JSON.stringify(history) ? prev : history);
+            }
 
-        const latest = await getLatestData(userId);
-        // Only update if latest has actual data
-        if (latest && Object.keys(latest).length > 0) {
-            setLiveData(latest);
+            const latest = await getLatestData(userId);
+            if (latest && Object.keys(latest).length > 0) {
+                setLiveData(prev => JSON.stringify(prev) === JSON.stringify(latest) ? prev : latest);
+            } else {
+                setLiveData(null); // Ensure data clears if polling yields an empty object
+            }
+        } catch (error) {
+            console.error('Fetch error:', error);
+        } finally {
+            setLoading(false);
         }
-    } catch (error) {
-        console.error('Fetch error:', error);
-    } finally {
-        setLoading(false);
-    }
-}, [userId, timeRange]);
+    }, [userId, timeRange]);
 
     useEffect(() => {
         fetchData();
+
+        const resetLiveTimeout = () => {
+            if (liveTimeoutRef.current) {
+                clearTimeout(liveTimeoutRef.current);
+            }
+            liveTimeoutRef.current = setTimeout(() => {
+                setConnectionStatus('Offline');
+                setLiveData(null); // Clear the static persistent numbers on the dashboard
+            }, 10000);
+        };
 
         // Pass userId in handshake query — matches updated backend
         const newSocket = io(SOCKET_URL, {
@@ -63,7 +77,9 @@ const UserDashboard = ({ route, navigation }) => {
 
         newSocket.on('connect', () => {
             console.log('✅ User socket connected');
+            setConnectionStatus('Waiting for Data');
             newSocket.emit('join', userId);
+            resetLiveTimeout();
         });
 
         newSocket.on('connect_error', (err) => {
@@ -75,13 +91,15 @@ const UserDashboard = ({ route, navigation }) => {
             console.log('📨 Live data received:', data);
             setLiveData(data);
             setHistoricalData(prev => [...prev, data].slice(-20));
+            setConnectionStatus('Live');
+            resetLiveTimeout();
         });
 
         // Backend sends initial history on connect
         newSocket.on('initial-data', (data) => {
-            if (data && data.length > 0) {
+            if (data) {
                 setHistoricalData(data);
-                setLiveData(data[0]);
+                if (data.length > 0) setLiveData(data[0]);
                 setLoading(false);
             }
         });
@@ -91,6 +109,7 @@ const UserDashboard = ({ route, navigation }) => {
         return () => {
             newSocket.disconnect();
             clearInterval(interval);
+            if (liveTimeoutRef.current) clearTimeout(liveTimeoutRef.current);
         };
     }, [userId, timeRange, fetchData]);
 
@@ -143,6 +162,16 @@ const UserDashboard = ({ route, navigation }) => {
                 <TouchableOpacity style={styles.logoutButtonTop} onPress={handleLogout}>
                     <Text style={styles.logoutText}>Logout</Text>
                 </TouchableOpacity>
+            </View>
+
+            {/* Connection Status Indicator */}
+            <View style={styles.statusContainer}>
+                <View style={[styles.statusDot,
+                connectionStatus === 'Live' ? { backgroundColor: '#06ffa5' } :
+                    connectionStatus === 'Waiting for Data' ? { backgroundColor: '#ffd32a' } :
+                        { backgroundColor: '#ff4757' }
+                ]} />
+                <Text style={styles.statusText}>{connectionStatus}</Text>
             </View>
 
             <View style={styles.liveContainer}>
@@ -215,6 +244,9 @@ const UserDashboard = ({ route, navigation }) => {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#0f0f1e' },
     header: { padding: 20, paddingTop: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#333' },
+    statusContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 15, marginBottom: 5 },
+    statusDot: { width: 10, height: 10, borderRadius: 5, marginRight: 8 },
+    statusText: { color: '#ccc', fontSize: 14, fontWeight: 'bold' },
     welcomeText: { color: 'white', fontSize: 22, fontWeight: 'bold' },
     logoutButtonTop: { backgroundColor: '#ff4757', paddingVertical: 8, paddingHorizontal: 15, borderRadius: 8 },
     logoutText: { color: 'white', fontWeight: 'bold', fontSize: 14 },
