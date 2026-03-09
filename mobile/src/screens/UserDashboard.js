@@ -35,7 +35,12 @@ const UserDashboard = ({ route, navigation }) => {
         try {
             const history = await getHistoricalData(userId, timeRange);
             if (history && history.length > 0) {
-                setHistoricalData(prev => JSON.stringify(prev) === JSON.stringify(history) ? prev : history);
+                setHistoricalData(prev => {
+                    // Keep any socket records newer than the latest REST record
+                    const latestRestTime = new Date(history[history.length - 1].timestamp).getTime();
+                    const newerSocket = prev.filter(d => new Date(d.timestamp).getTime() > latestRestTime);
+                    return [...history, ...newerSocket];
+                });
             }
 
             const latest = await getLatestData(userId);
@@ -50,18 +55,14 @@ const UserDashboard = ({ route, navigation }) => {
     }, [userId, timeRange]);
 
     useEffect(() => {
+        // Fetch once on mount / when range or user changes
         fetchData();
 
         const resetLiveTimeout = () => {
-            if (liveTimeoutRef.current) {
-                clearTimeout(liveTimeoutRef.current);
-            }
-            liveTimeoutRef.current = setTimeout(() => {
-                setConnectionStatus('Offline');
-            }, 10000);
+            if (liveTimeoutRef.current) clearTimeout(liveTimeoutRef.current);
+            liveTimeoutRef.current = setTimeout(() => setConnectionStatus('Offline'), 10000);
         };
 
-        // Pass userId in handshake query — matches updated backend
         const newSocket = io(SOCKET_URL, {
             query: { userId },
             transports: ['websocket', 'polling'],
@@ -77,51 +78,107 @@ const UserDashboard = ({ route, navigation }) => {
             resetLiveTimeout();
         });
 
-        newSocket.on('connect_error', (err) => {
-            console.error('❌ Socket connection error:', err.message);
-        });
+        newSocket.on('connect_error', (err) => console.error('❌ Socket error:', err.message));
 
-        // Backend emits 'mqtt-message' not 'sensorData'
         newSocket.on('mqtt-message', (data) => {
-            console.log('📨 Live data received:', data);
             setLiveData(data);
-            setHistoricalData(prev => [...prev, data]);
+            setHistoricalData(prev => [...prev, data]);  // only socket drives real-time updates
             setConnectionStatus('Live');
             resetLiveTimeout();
         });
 
-        // Backend sends initial history on connect
         newSocket.on('initial-data', (data) => {
-            if (data) {
+            if (data && data.length > 0) {
                 setHistoricalData(data);
-                if (data.length > 0) setLiveData(data[data.length - 1]);
+                setLiveData(data[data.length - 1]);
                 setLoading(false);
             }
         });
 
-        const interval = setInterval(fetchData, 10000);
-
+        // NO setInterval — polling caused the 00:30→00:29 oscillation
         return () => {
             newSocket.disconnect();
-            clearInterval(interval);
             if (liveTimeoutRef.current) clearTimeout(liveTimeoutRef.current);
         };
     }, [userId, timeRange, fetchData]);
 
+    // ---- Warning thresholds (no motion warning) ----
+    const WARNINGS = [
+        {
+            key: 'heartRate', label: 'Heart Rate',
+            danger: v => v < 50 || v > 120,
+            warning: v => v < 60 || v > 100,
+            dangerMsg: v => v < 50 ? `⚠️ Critical: Heart Rate ${v} BPM (too low!)` : `⚠️ Critical: Heart Rate ${v} BPM (too high!)`,
+            warnMsg: v => v < 60 ? `⚡ Warning: Heart Rate ${v} BPM (low)` : `⚡ Warning: Heart Rate ${v} BPM (elevated)`,
+        },
+        {
+            key: 'temperature', label: 'Temperature',
+            danger: v => v < 35.0 || v > 38.5,
+            warning: v => v > 37.2 || v < 36.0,
+            dangerMsg: v => v < 35.0 ? `⚠️ Critical: Temp ${v}°C (hypothermia risk!)` : `⚠️ Critical: Temp ${v}°C (high fever!)`,
+            warnMsg: v => v > 37.2 ? `⚡ Warning: Temp ${v}°C (mild fever)` : `⚡ Warning: Temp ${v}°C (low)`,
+        },
+        {
+            key: 'spo2', label: 'SpO2',
+            danger: v => v < 90,
+            warning: v => v < 95,
+            dangerMsg: v => `⚠️ Critical: SpO2 ${v}% (severe hypoxia!)`,
+            warnMsg: v => `⚡ Warning: SpO2 ${v}% (low oxygen)`,
+        },
+    ];
+
+    const renderWarnings = () => {
+        if (!liveData) return null;
+        const alerts = [];
+        WARNINGS.forEach(w => {
+            const v = liveData[w.key];
+            if (v == null) return;
+            if (w.danger(v)) alerts.push({ msg: w.dangerMsg(v), level: 'danger' });
+            else if (w.warning(v)) alerts.push({ msg: w.warnMsg(v), level: 'warning' });
+        });
+        if (alerts.length === 0) return null;
+        return (
+            <View style={{ marginHorizontal: 16, marginBottom: 12 }}>
+                {alerts.map((a, i) => (
+                    <View key={i} style={[
+                        styles.alertBanner,
+                        a.level === 'danger' ? styles.alertDanger : styles.alertWarning
+                    ]}>
+                        <Text style={styles.alertText}>{a.msg}</Text>
+                    </View>
+                ))}
+            </View>
+        );
+    };
+
     const renderChart = (label, dataKey, color) => {
         if (!historicalData || historicalData.length === 0) return null;
 
-        const dataPoints = historicalData.map(d => d[dataKey]).filter(val => val != null);
-        const labels = historicalData.map(d => {
-            const date = new Date(d.timestamp);
-            return `${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
-        });
+        // Sort ascending, newest last — will reverse below for display
+        const sorted = [...historicalData].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
-        const step = Math.ceil(dataPoints.length / 6);
-        const filteredData = dataPoints.filter((_, i) => i % step === 0).slice(-6);
-        const filteredLabels = labels.filter((_, i) => i % step === 0).slice(-6);
+        // Zip data + label together so they always stay in sync
+        const pairs = sorted
+            .map(d => ({
+                val: d[dataKey],
+                label: (() => {
+                    const date = new Date(d.timestamp);
+                    return `${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
+                })()
+            }))
+            .filter(p => p.val != null && !isNaN(p.val));
 
-        if (filteredData.length === 0) return <Text style={{ color: 'white' }}>No Data</Text>;
+        if (pairs.length === 0) return null;
+
+        // Sample down to max 8 evenly-spaced points, then reverse for newest-on-left
+        const step = Math.max(1, Math.ceil(pairs.length / 8));
+        const sampled = pairs.filter((_, i) => i % step === 0).slice(-8).reverse();
+
+        // react-native-chart-kit needs >= 2 points for bezier; pad if needed
+        while (sampled.length < 2) sampled.push(sampled[0]);
+
+        const filteredData = sampled.map(p => p.val);
+        const filteredLabels = sampled.map(p => p.label);
 
         return (
             <View style={styles.chartContainer}>
@@ -129,21 +186,90 @@ const UserDashboard = ({ route, navigation }) => {
                 <LineChart
                     data={{ labels: filteredLabels, datasets: [{ data: filteredData }] }}
                     width={screenWidth - 40}
-                    height={220}
-                    yAxisSuffix={dataKey === 'temperature' ? '°C' : ''}
+                    height={200}
+                    yAxisSuffix={dataKey === 'temperature' ? '°C' : dataKey === 'spo2' ? '%' : ''}
                     chartConfig={{
                         backgroundColor: '#1a1a2e',
                         backgroundGradientFrom: '#1a1a2e',
-                        backgroundGradientTo: '#1a1a2e',
+                        backgroundGradientTo: '#16213e',
                         decimalPlaces: 1,
                         color: (opacity = 1) => color,
-                        labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+                        labelColor: (opacity = 1) => `rgba(200,200,255,${opacity})`,
                         style: { borderRadius: 16 },
-                        propsForDots: { r: "4", strokeWidth: "2", stroke: color }
+                        propsForDots: { r: '3', strokeWidth: '2', stroke: color },
+                        propsForBackgroundLines: { strokeDasharray: '4', stroke: 'rgba(255,255,255,0.1)' }
                     }}
                     bezier
-                    style={{ marginVertical: 8, borderRadius: 16 }}
+                    style={{ marginVertical: 4, borderRadius: 16 }}
                 />
+            </View>
+        );
+    };
+
+    // Motion chart: colored bars per state (newest on left)
+    const MOTION_COLORS = { sleep: '#74c0fc', sit: '#ffa94d', walk: '#a9e34b' };
+    const MOTION_LABELS_MAP = { sleep: 'Sleep', sit: 'Sit', walk: 'Walk' };
+
+    const renderMotionChart = () => {
+        if (!historicalData || historicalData.length === 0) return null;
+
+        const sorted = [...historicalData].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+        const motionPoints = sorted.filter(d => d.motion != null);
+        if (motionPoints.length === 0) return (
+            <View style={styles.chartContainer}>
+                <Text style={styles.chartTitle}>🏃 Motion</Text>
+                <Text style={{ color: '#aaa', textAlign: 'center', marginTop: 20 }}>No motion data yet</Text>
+            </View>
+        );
+
+        // Take last 20 points and reverse (newest first = leftmost)
+        const recent = motionPoints.slice(-20).reverse();
+
+        return (
+            <View style={styles.chartContainer}>
+                <Text style={styles.chartTitle}>🏃 Motion</Text>
+                {/* Legend */}
+                <View style={{ flexDirection: 'row', gap: 16, marginBottom: 10, justifyContent: 'center' }}>
+                    {Object.entries(MOTION_COLORS).map(([state, col]) => (
+                        <View key={state} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: col }} />
+                            <Text style={{ color: '#ccc', fontSize: 12 }}>{MOTION_LABELS_MAP[state]}</Text>
+                        </View>
+                    ))}
+                </View>
+                {/* Bar timeline */}
+                <View style={{
+                    flexDirection: 'row', height: 60, width: screenWidth - 40,
+                    borderRadius: 12, overflow: 'hidden', backgroundColor: '#1a1a2e'
+                }}>
+                    {recent.map((d, i) => (
+                        <View
+                            key={i}
+                            style={{
+                                flex: 1,
+                                backgroundColor: MOTION_COLORS[d.motion] || '#333',
+                                opacity: 0.85,
+                                borderRightWidth: i < recent.length - 1 ? 1 : 0,
+                                borderRightColor: '#0f0f1e'
+                            }}
+                        />
+                    ))}
+                </View>
+                {/* Time labels */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: screenWidth - 40, marginTop: 4 }}>
+                    <Text style={{ color: '#888', fontSize: 10 }}>
+                        {'← NOW  '}
+                        {new Date(recent[0]?.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </Text>
+                    <Text style={{ color: '#888', fontSize: 10 }}>
+                        {new Date(recent[recent.length - 1]?.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {'  OLDER →'}
+                    </Text>
+                </View>
+                {/* Last known state */}
+                <Text style={{ color: MOTION_COLORS[recent[0]?.motion], fontWeight: 'bold', marginTop: 8, fontSize: 14 }}>
+                    Current: {MOTION_LABELS_MAP[recent[0]?.motion] || '--'}
+                </Text>
             </View>
         );
     };
@@ -168,6 +294,9 @@ const UserDashboard = ({ route, navigation }) => {
                 ]} />
                 <Text style={styles.statusText}>{connectionStatus}</Text>
             </View>
+
+            {/* Warning alerts */}
+            {renderWarnings()}
 
             <View style={styles.liveContainer}>
                 <View style={[styles.card, styles.dataCard]}>
@@ -234,9 +363,10 @@ const UserDashboard = ({ route, navigation }) => {
 
             {loading ? <ActivityIndicator size="large" color="#4361ee" /> : (
                 <View style={styles.chartsWrapper}>
-                    {renderChart('Heart Rate', 'heartRate', '#ff4757')}
-                    {renderChart('Oxygen Saturation', 'spo2', '#06ffa5')}
-                    {renderChart('Temperature', 'temperature', '#ffa502')}
+                    {renderChart('❤️ Heart Rate', 'heartRate', '#ff4757')}
+                    {renderChart('💧 Oxygen Saturation', 'spo2', '#06ffa5')}
+                    {renderChart('🌡️ Temperature', 'temperature', '#ffa502')}
+                    {renderMotionChart()}
                 </View>
             )}
 
@@ -254,9 +384,16 @@ const styles = StyleSheet.create({
     welcomeText: { color: 'white', fontSize: 22, fontWeight: 'bold' },
     logoutButtonTop: { backgroundColor: '#ff4757', paddingVertical: 8, paddingHorizontal: 15, borderRadius: 8 },
     logoutText: { color: 'white', fontWeight: 'bold', fontSize: 14 },
-    liveContainer: { flexDirection: 'row', justifyContent: 'space-between', padding: 20 },
+    liveContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        gap: 10,
+    },
     card: { backgroundColor: '#1a1a2e', borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: '#333' },
-    dataCard: { padding: 15, width: '31%' },
+    dataCard: { padding: 12, width: '47%', marginBottom: 4 },
     qrCard: { backgroundColor: '#1a1a2e', padding: 30, borderRadius: 24, alignItems: 'center', marginHorizontal: 20, marginBottom: 20, borderWidth: 1, borderColor: '#333' },
     cardLabel: { color: '#aaa', marginBottom: 5, fontSize: 12 },
     cardValue: { fontSize: 24, fontWeight: 'bold' },
@@ -272,7 +409,15 @@ const styles = StyleSheet.create({
     toggleText: { color: 'white', fontWeight: 'bold' },
     chartsWrapper: { paddingBottom: 20 },
     chartContainer: { padding: 10, alignItems: 'center' },
-    chartTitle: { color: 'white', fontSize: 16, marginBottom: 10, fontWeight: 'bold' }
+    chartTitle: { color: 'white', fontSize: 16, marginBottom: 10, fontWeight: 'bold' },
+    alertBanner: {
+        flexDirection: 'row', alignItems: 'center',
+        borderRadius: 10, padding: 12, marginBottom: 8,
+        borderLeftWidth: 4,
+    },
+    alertDanger: { backgroundColor: 'rgba(230,57,70,0.18)', borderLeftColor: '#e63946' },
+    alertWarning: { backgroundColor: 'rgba(255,178,0,0.15)', borderLeftColor: '#ffb200' },
+    alertText: { color: '#fff', fontSize: 13, fontWeight: '600', flexShrink: 1 },
 });
 
 export default UserDashboard;

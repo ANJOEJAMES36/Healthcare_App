@@ -4,6 +4,7 @@ import Header from './Header';
 import MetricCard from './MetricCard';
 import ChartCard from './ChartCard';
 import DataTable from './DataTable';
+import WarningBanner from './WarningBanner';
 import { useSocket } from '../hooks/useSocket';
 import { useHealthData } from '../hooks/useHealthData';
 import { formatChartData } from '../utils/formatters';
@@ -77,6 +78,9 @@ const Dashboard = ({ viewingUserId, userName, onBack }) => {
                 connectionStatus={connectionStatus}
                 onBack={onBack}
             />
+
+            {/* Warning Banners */}
+            <WarningBanner latestData={latestData} />
 
             {/* Metric Cards + QR Code */}
             <div style={{
