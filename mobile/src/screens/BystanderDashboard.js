@@ -25,9 +25,7 @@ const BystanderDashboard = ({ route, navigation }) => {
     const fetchData = useCallback(async () => {
         try {
             const history = await getHistoricalData(userId, timeRange);
-            // Always update to clear chart if device sent no data for this range,
-            // but use JSON.stringify to prevent endless chart re-animations on identical offline data
-            if (history) {
+            if (history && history.length > 0) {
                 setHistoricalData(prev => JSON.stringify(prev) === JSON.stringify(history) ? prev : history);
             }
 
@@ -35,8 +33,6 @@ const BystanderDashboard = ({ route, navigation }) => {
             // Only update if latest has actual data
             if (latest && Object.keys(latest).length > 0) {
                 setLiveData(prev => JSON.stringify(prev) === JSON.stringify(latest) ? prev : latest);
-            } else {
-                setLiveData(null);
             }
         } catch (error) {
             console.error('Fetch error:', error);
@@ -54,7 +50,6 @@ const BystanderDashboard = ({ route, navigation }) => {
             }
             liveTimeoutRef.current = setTimeout(() => {
                 setConnectionStatus('Offline');
-                setLiveData(null);
             }, 10000);
         };
 

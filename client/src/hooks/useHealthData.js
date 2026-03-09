@@ -20,8 +20,7 @@ export const useHealthData = (selectedRange, setMessages, userId) => {
             })
             .then(data => {
                 console.log(`✅ Received ${data ? data.length : 0} records for ${selectedRange}`);
-                // Always update to clear chart if device sent no data for this range
-                if (data) {
+                if (data && data.length > 0) {
                     setMessages(data);
                 }
             })

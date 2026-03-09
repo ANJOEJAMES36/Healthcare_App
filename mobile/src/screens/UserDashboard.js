@@ -34,17 +34,13 @@ const UserDashboard = ({ route, navigation }) => {
     const fetchData = useCallback(async () => {
         try {
             const history = await getHistoricalData(userId, timeRange);
-            // Always update to clear chart if device sent no data for this range,
-            // but use JSON.stringify to prevent endless chart re-animations on identical data
-            if (history) {
+            if (history && history.length > 0) {
                 setHistoricalData(prev => JSON.stringify(prev) === JSON.stringify(history) ? prev : history);
             }
 
             const latest = await getLatestData(userId);
             if (latest && Object.keys(latest).length > 0) {
                 setLiveData(prev => JSON.stringify(prev) === JSON.stringify(latest) ? prev : latest);
-            } else {
-                setLiveData(null); // Ensure data clears if polling yields an empty object
             }
         } catch (error) {
             console.error('Fetch error:', error);
@@ -62,7 +58,6 @@ const UserDashboard = ({ route, navigation }) => {
             }
             liveTimeoutRef.current = setTimeout(() => {
                 setConnectionStatus('Offline');
-                setLiveData(null); // Clear the static persistent numbers on the dashboard
             }, 10000);
         };
 
