@@ -86,7 +86,7 @@ io.on('connection', async (socket) => {
                 .sort({ timestamp: -1 })
                 .limit(50)
                 .lean();
-            socket.emit('initial-data', historicalData);
+            socket.emit('initial-data', historicalData.reverse());
             console.log(`📦 Sent ${historicalData.length} historical records to ${userId}`);
         } catch (err) {
             console.error('❌ Error fetching history:', err);
@@ -101,7 +101,7 @@ io.on('connection', async (socket) => {
                 .sort({ timestamp: -1 })
                 .limit(50)
                 .lean();
-            socket.emit('initial-data', historicalData);
+            socket.emit('initial-data', historicalData.reverse());
         } catch (err) {
             console.error('❌ Error fetching history:', err);
             socket.emit('error', { message: 'Failed to fetch historical data' });

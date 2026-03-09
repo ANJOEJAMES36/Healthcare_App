@@ -30,7 +30,7 @@ export const formatChartData = (messages, selectedRange) => {
             spo2: msg.spo2 ?? null,
             bloodPressure: msg.bloodPressure ?? null
         };
-    }).reverse();
+    });
 };
 
 /**

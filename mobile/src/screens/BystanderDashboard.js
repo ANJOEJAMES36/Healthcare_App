@@ -78,7 +78,7 @@ const BystanderDashboard = ({ route, navigation }) => {
         newSocket.on('mqtt-message', (data) => {
             console.log('📨 Live data received:', data);
             setLiveData(data);
-            setHistoricalData(prev => [...prev, data].slice(-20));
+            setHistoricalData(prev => [...prev, data]);
             setConnectionStatus('Live');
             resetLiveTimeout();
         });
@@ -87,7 +87,7 @@ const BystanderDashboard = ({ route, navigation }) => {
         newSocket.on('initial-data', (data) => {
             if (data) {
                 setHistoricalData(data);
-                if (data.length > 0) setLiveData(data[0]);
+                if (data.length > 0) setLiveData(data[data.length - 1]);
                 setLoading(false);
             }
         });
