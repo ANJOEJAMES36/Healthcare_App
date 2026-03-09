@@ -1,8 +1,22 @@
 import PropTypes from 'prop-types';
 import { useAuth } from '../context/AuthContext';
 
+const getStatusConfig = (status) => {
+    switch (status) {
+        case 'Live':
+            return { bg: 'rgba(6, 255, 165, 0.1)', border: 'var(--success)', color: 'var(--success)', dot: '🟢', label: 'Live' };
+        case 'Connected':
+            return { bg: 'rgba(255, 210, 63, 0.1)', border: 'var(--warning)', color: 'var(--warning)', dot: '🟡', label: 'Connected' };
+        case 'Reconnecting...':
+            return { bg: 'rgba(255, 210, 63, 0.1)', border: 'var(--warning)', color: 'var(--warning)', dot: '🟡', label: 'Reconnecting...' };
+        default:
+            return { bg: 'rgba(230, 57, 70, 0.1)', border: 'var(--danger)', color: 'var(--danger)', dot: '🔴', label: 'Offline' };
+    }
+};
+
 const Header = ({ userName, connectionStatus, onBack }) => {
     const { logout } = useAuth();
+    const s = getStatusConfig(connectionStatus);
 
     return (
         <div style={{
@@ -31,7 +45,6 @@ const Header = ({ userName, connectionStatus, onBack }) => {
                     </p>
                 </div>
 
-                {/* Conditional Action Button: Back or Logout */}
                 {onBack ? (
                     <button
                         onClick={onBack}
@@ -82,16 +95,18 @@ const Header = ({ userName, connectionStatus, onBack }) => {
                     </button>
                 )}
             </div>
+
+            {/* Status indicator — 3 states: Live, Connected, Offline */}
             <div style={{
                 padding: '12px 24px',
                 borderRadius: '24px',
-                background: connectionStatus === 'Connected' ? 'rgba(6, 255, 165, 0.1)' : 'rgba(230, 57, 70, 0.1)',
-                border: `2px solid ${connectionStatus === 'Connected' ? 'var(--success)' : 'var(--danger)'}`,
+                background: s.bg,
+                border: `2px solid ${s.border}`,
                 fontWeight: 'bold',
                 fontSize: '1em',
-                color: connectionStatus === 'Connected' ? 'var(--success)' : 'var(--danger)'
+                color: s.color
             }}>
-                {connectionStatus === 'Connected' ? '🟢 Live' : '🔴 Offline'}
+                {s.dot} {s.label}
             </div>
         </div>
     );

@@ -11,7 +11,6 @@ import { METRICS, API_URL, TIME_RANGES } from '../constants/config';
 import { QRCodeCanvas } from 'qrcode.react';
 import '../index.css';
 
-// Time range selector inline (remove if you have a separate component)
 const TimeRangeSelector = ({ selectedRange, onRangeChange }) => (
     <div style={{ display: 'flex', gap: '10px', marginBottom: '24px', flexWrap: 'wrap' }}>
         {TIME_RANGES.map(range => (
@@ -46,8 +45,8 @@ const Dashboard = ({ viewingUserId, userName, onBack }) => {
         bloodPressure: { low: 90, high: 140 }
     });
 
-    // Pass viewingUserId so socket joins the correct room
-    const { connectionStatus, latestData, messages, setMessages } = useSocket(viewingUserId);
+    // isLive — true only when fresh MQTT data is arriving
+    const { connectionStatus, latestData, isLive, messages, setMessages } = useSocket(viewingUserId);
     useHealthData(selectedRange, setMessages, viewingUserId);
 
     // Fetch thresholds
@@ -63,7 +62,7 @@ const Dashboard = ({ viewingUserId, userName, onBack }) => {
             })
             .then(data => setThresholds(data))
             .catch(err => console.error('Error fetching thresholds:', err));
-    }, []); // only fetch once on mount
+    }, []);
 
     const chartData = formatChartData(messages, selectedRange);
 
@@ -90,7 +89,9 @@ const Dashboard = ({ viewingUserId, userName, onBack }) => {
                     <MetricCard
                         key={key}
                         title={config.title}
-                        value={latestData?.[key]}
+                        // Only show value when live MQTT data is arriving
+                        // Shows '--' when device is offline
+                        value={isLive ? latestData?.[key] : null}
                         unit={config.unit}
                         emoji={config.emoji}
                         accentColor={config.color}
@@ -134,7 +135,7 @@ const Dashboard = ({ viewingUserId, userName, onBack }) => {
                 onRangeChange={setSelectedRange}
             />
 
-            {/* Charts */}
+            {/* Charts — always show historical data regardless of live status */}
             <div style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))',
