@@ -19,9 +19,12 @@ export const useHealthData = (selectedRange, setMessages, userId) => {
                 return res.json();
             })
             .then(data => {
-                console.log(`✅ Received ${data.length} records for ${selectedRange}`);
-                setMessages(data);
-            })
+    console.log(`✅ Received ${data.length} records for ${selectedRange}`);
+    // Only update if we got data — keeps chart visible when device is offline
+    if (data && data.length > 0) {
+        setMessages(data);
+    }
+})
             .catch(err => console.error('❌ Error fetching data:', err));
     }, [selectedRange, userId]);
 

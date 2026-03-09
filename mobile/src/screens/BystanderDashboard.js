@@ -20,18 +20,25 @@ const BystanderDashboard = ({ route, navigation }) => {
     const [timeRange, setTimeRange] = useState('10min');
     const [loading, setLoading] = useState(true);
 
-    const fetchData = useCallback(async () => {
-        try {
-            const history = await getHistoricalData(userId, timeRange);
+   const fetchData = useCallback(async () => {
+    try {
+        const history = await getHistoricalData(userId, timeRange);
+        // Only update if we got data — keeps chart visible when device is offline
+        if (history && history.length > 0) {
             setHistoricalData(history);
-            const latest = await getLatestData(userId);
-            if (latest) setLiveData(latest);
-        } catch (error) {
-            console.error('Fetch error:', error);
-        } finally {
-            setLoading(false);
         }
-    }, [userId, timeRange]);
+
+        const latest = await getLatestData(userId);
+        // Only update if latest has actual data
+        if (latest && Object.keys(latest).length > 0) {
+            setLiveData(latest);
+        }
+    } catch (error) {
+        console.error('Fetch error:', error);
+    } finally {
+        setLoading(false);
+    }
+}, [userId, timeRange]);
 
     useEffect(() => {
         fetchData();
