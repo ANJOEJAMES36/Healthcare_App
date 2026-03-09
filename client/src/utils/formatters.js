@@ -14,7 +14,7 @@ export const formatChartData = (messages) => {
 
     const sampledData = sorted.filter((_, index) => index % sampleRate === 0);
 
-    const MOTION_MAP = { sleep: 0, sit: 1, walk: 2 };
+    const MOTION_MAP = { sleep: 1, sit: 2, walk: 3 };
 
     return sampledData.map(msg => {
         const date = new Date(msg.timestamp);

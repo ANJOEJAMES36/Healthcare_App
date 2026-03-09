@@ -13,9 +13,9 @@ export const METRIC_DOMAINS = {
 
 // Motion state display config
 const MOTION_CONFIG = {
-    0: { label: 'Sleep', color: '#74c0fc' },
-    1: { label: 'Sit', color: '#ffa94d' },
-    2: { label: 'Walk', color: '#a9e34b' },
+    1: { label: 'Sleep', color: '#74c0fc' },
+    2: { label: 'Sit', color: '#ffa94d' },
+    3: { label: 'Walk', color: '#a9e34b' },
 };
 
 const ChartCard = ({ title, data, dataKey, color, domain, unit, timeRange }) => {
@@ -94,7 +94,6 @@ const ChartCard = ({ title, data, dataKey, color, domain, unit, timeRange }) => 
                         <XAxis
                             dataKey="time"
                             type="number"
-                            scale="time"
                             domain={['dataMin', 'dataMax']}
                             tickFormatter={formatTime}
                             tickCount={6}
@@ -106,15 +105,15 @@ const ChartCard = ({ title, data, dataKey, color, domain, unit, timeRange }) => 
                         />
                         <YAxis
                             type="number"
-                            domain={[-0.5, 2.5]}
-                            ticks={[0, 1, 2]}
+                            domain={[0.5, 3.5]}
+                            ticks={[1, 2, 3]}
                             tick={<MotionTick />}
                             width={52}
                             stroke="var(--text-secondary)"
                         />
-                        <ReferenceLine y={0} stroke={MOTION_CONFIG[0].color} strokeDasharray="4 4" strokeOpacity={0.3} />
                         <ReferenceLine y={1} stroke={MOTION_CONFIG[1].color} strokeDasharray="4 4" strokeOpacity={0.3} />
                         <ReferenceLine y={2} stroke={MOTION_CONFIG[2].color} strokeDasharray="4 4" strokeOpacity={0.3} />
+                        <ReferenceLine y={3} stroke={MOTION_CONFIG[3].color} strokeDasharray="4 4" strokeOpacity={0.3} />
                         <Tooltip content={<MotionTooltip />} />
                         <Bar dataKey="motion" maxBarSize={8} radius={[2, 2, 0, 0]} isAnimationActive={false}>
                             {motionData.map((entry, index) => (
@@ -152,7 +151,6 @@ const ChartCard = ({ title, data, dataKey, color, domain, unit, timeRange }) => 
                     <XAxis
                         dataKey="time"
                         type="number"
-                        scale="time"
                         domain={['dataMin', 'dataMax']}
                         tickFormatter={formatTime}
                         tickCount={6}
