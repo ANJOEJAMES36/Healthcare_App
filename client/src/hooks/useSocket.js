@@ -75,7 +75,8 @@ export const useSocket = (userId = USER_ID) => {
         });
 
         socket.on('mqtt-message', (data) => {
-            console.log('📨 New MQTT data:', data);
+            console.log('📨 MQTT data fields:', JSON.stringify(Object.keys(data)));
+            console.log('  motion:', data.motion, '| temp:', data.temperature, '| hr:', data.heartRate, '| spo2:', data.spo2);
             setMessages((prev) => [...prev, data]);
             setLatestData(data);
             setConnectionStatus('Live');
