@@ -97,6 +97,7 @@ const ChartCard = ({ title, data, dataKey, color, domain, unit, timeRange }) => 
                             domain={['dataMin', 'dataMax']}
                             tickFormatter={formatTime}
                             tickCount={6}
+                            reversed={true}
                             stroke="var(--text-secondary)"
                             style={{ fontSize: '0.75em' }}
                             angle={-25}
@@ -154,6 +155,7 @@ const ChartCard = ({ title, data, dataKey, color, domain, unit, timeRange }) => 
                         domain={['dataMin', 'dataMax']}
                         tickFormatter={formatTime}
                         tickCount={6}
+                        reversed={true}
                         stroke="var(--text-secondary)"
                         style={{ fontSize: '0.75em' }}
                         angle={-25}
