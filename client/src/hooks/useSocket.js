@@ -5,9 +5,10 @@ import { SOCKET_URL, USER_ID } from '../constants/config';
 export const useSocket = (userId = USER_ID) => {
     const [connectionStatus, setConnectionStatus] = useState('Disconnected');
     const [latestData, setLatestData] = useState(null);
-    const [isLive, setIsLive] = useState(false); // true only when fresh MQTT data arrives
+    const [isLive, setIsLive] = useState(false);
     const [messages, setMessages] = useState([]);
     const socketRef = useRef(null);
+    const liveTimeoutRef = useRef(null); // tracks when data was last received
 
     useEffect(() => {
         const socket = io(SOCKET_URL, {
@@ -20,10 +21,27 @@ export const useSocket = (userId = USER_ID) => {
 
         socketRef.current = socket;
 
+        const clearLiveTimeout = () => {
+            if (liveTimeoutRef.current) {
+                clearTimeout(liveTimeoutRef.current);
+                liveTimeoutRef.current = null;
+            }
+        };
+
+        const resetLiveTimeout = () => {
+            clearLiveTimeout();
+            // If no new data arrives in 15s, mark as no longer live
+            liveTimeoutRef.current = setTimeout(() => {
+                console.warn('⚠️ No MQTT data received for 15s — marking as not live');
+                setIsLive(false);
+                setConnectionStatus('No Data');
+            }, 15000);
+        };
+
         socket.on('connect', () => {
             console.log(`✅ Connected to backend as ${userId}`);
             setConnectionStatus('Connected');
-            setIsLive(false); // connected but not live yet until MQTT data arrives
+            setIsLive(false);
             socket.emit('join', userId);
         });
 
@@ -31,37 +49,37 @@ export const useSocket = (userId = USER_ID) => {
             console.error('❌ Connection error:', err.message);
             setConnectionStatus('Disconnected');
             setIsLive(false);
+            clearLiveTimeout();
         });
 
         socket.on('reconnect_attempt', (attempt) => {
             console.log(`🔄 Reconnection attempt ${attempt}`);
             setConnectionStatus('Reconnecting...');
             setIsLive(false);
+            clearLiveTimeout();
         });
 
         socket.on('disconnect', (reason) => {
             console.log(`❌ Disconnected: ${reason}`);
             setConnectionStatus('Disconnected');
             setIsLive(false);
+            clearLiveTimeout();
         });
 
-        // initial-data — historical records, don't mark as live
         socket.on('initial-data', (data) => {
             console.log(`📦 Initial data received: ${data.length} records`);
             if (data && data.length > 0) {
                 setMessages(data);
-                // Don't set latestData here — keeps metric cards showing '--'
-                // until real live data arrives
             }
         });
 
-        // mqtt-message — only this marks the connection as truly live
         socket.on('mqtt-message', (data) => {
             console.log('📨 New MQTT data:', data);
             setMessages((prev) => [data, ...prev].slice(0, 100));
             setLatestData(data);
             setConnectionStatus('Live');
             setIsLive(true);
+            resetLiveTimeout(); // restart the 15s countdown every time data arrives
         });
 
         socket.on('error', (err) => {
@@ -71,6 +89,7 @@ export const useSocket = (userId = USER_ID) => {
         return () => {
             socket.disconnect();
             setIsLive(false);
+            clearLiveTimeout();
         };
     }, [userId]);
 
