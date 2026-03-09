@@ -1,25 +1,36 @@
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Replace with your actual local IP address when testing on physical device
-// For Android Emulator, use 'http://10.0.2.2:5000'
 const API_URL = 'https://health-care-app-iot.onrender.com/api';
+
+// Helper to get auth headers
+const getAuthHeaders = async () => {
+    const token = await AsyncStorage.getItem('token');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+};
 
 export const getLatestData = async (userId) => {
     try {
-        const response = await axios.get(`${API_URL}/data/${userId}/latest`);
+        const headers = await getAuthHeaders();
+        const response = await axios.get(`${API_URL}/data/${userId}/latest`, { headers, timeout: 10000 });
         return response.data;
     } catch (error) {
-        console.error('Error fetching latest data', error);
+        console.error('Error fetching latest data:', error.response?.data || error.message);
         return null;
     }
 };
 
 export const getHistoricalData = async (userId, timeRange) => {
     try {
-        const response = await axios.get(`${API_URL}/data/${userId}`, { params: { timeRange } });
+        const headers = await getAuthHeaders();
+        const response = await axios.get(`${API_URL}/data/${userId}`, {
+            headers,
+            params: { timeRange },
+            timeout: 10000
+        });
         return response.data;
     } catch (error) {
-        console.error('Error fetching historical data', error);
+        console.error('Error fetching historical data:', error.response?.data || error.message);
         return [];
     }
 };

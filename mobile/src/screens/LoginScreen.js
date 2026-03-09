@@ -13,24 +13,24 @@ const LoginScreen = ({ navigation }) => {
             return;
         }
 
-        console.log('Attempting login...', userId);
         setLoading(true);
         try {
-            const user = await loginUser(userId, password);
-            console.log('Login success:', user);
-            setLoading(false);
-            if (user.role === 'doctor') {
-                navigation.replace('DoctorDashboard', { user });
+            const data = await loginUser(userId, password);
+            console.log('Login success:', data.user);
+
+            // Route based on role — pass full user object
+            if (data.user.role === 'doctor') {
+                navigation.replace('DoctorDashboard', { user: data.user });
             } else {
-                navigation.replace('UserDashboard', { user });
+                navigation.replace('UserDashboard', { user: data.user });
             }
         } catch (error) {
-            console.log('Login error:', error);
-            setLoading(false);
             Alert.alert(
                 'Login Failed',
-                typeof error === 'string' ? error : (error.message || 'Network Error. Check IP.')
+                typeof error === 'string' ? error : (error.message || 'Network Error. Check connection.')
             );
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -46,6 +46,7 @@ const LoginScreen = ({ navigation }) => {
                     value={userId}
                     onChangeText={setUserId}
                     autoCapitalize="none"
+                    editable={!loading}
                 />
                 <TextInput
                     style={styles.input}
@@ -54,10 +55,15 @@ const LoginScreen = ({ navigation }) => {
                     value={password}
                     onChangeText={setPassword}
                     secureTextEntry
+                    editable={!loading}
                 />
             </View>
 
-            <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
+            <TouchableOpacity
+                style={[styles.button, loading && styles.buttonDisabled]}
+                onPress={handleLogin}
+                disabled={loading}
+            >
                 <Text style={styles.buttonText}>{loading ? 'Logging in...' : 'Login'}</Text>
             </TouchableOpacity>
 
@@ -68,6 +74,7 @@ const LoginScreen = ({ navigation }) => {
             <TouchableOpacity
                 style={[styles.button, styles.scanButton]}
                 onPress={() => navigation.navigate('Scanner')}
+                disabled={loading}
             >
                 <Text style={styles.buttonText}>Scan QR Code (Bystander)</Text>
             </TouchableOpacity>
@@ -106,6 +113,10 @@ const styles = StyleSheet.create({
         padding: 15,
         borderRadius: 10,
         alignItems: 'center',
+    },
+    buttonDisabled: {
+        backgroundColor: '#2a2a3e',
+        opacity: 0.6,
     },
     scanButton: {
         backgroundColor: '#06ffa5',

@@ -1,21 +1,26 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
+import { logoutUser } from '../services/AuthService';
 
 const DoctorDashboard = ({ route, navigation }) => {
     const { user } = route.params;
 
-    // Hardcoded for now as per requirement, or could fetch from backend if endpoint existed
     const patients = [
         { id: 'user1', name: 'User 1' },
         { id: 'user2', name: 'User 2' }
     ];
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
+        await logoutUser(); // clear AsyncStorage
         navigation.replace('Login');
     };
 
-    const handlePatientSelect = (patientId) => {
-        navigation.navigate('BystanderDashboard', { userId: patientId });
+    const handlePatientSelect = (patientId, patientName) => {
+        // Pass both id and name to BystanderDashboard
+        navigation.navigate('BystanderDashboard', {
+            userId: patientId,
+            userName: patientName
+        });
     };
 
     return (
@@ -35,7 +40,7 @@ const DoctorDashboard = ({ route, navigation }) => {
                 renderItem={({ item }) => (
                     <TouchableOpacity
                         style={styles.patientCard}
-                        onPress={() => handlePatientSelect(item.id)}
+                        onPress={() => handlePatientSelect(item.id, item.name)}
                     >
                         <View style={styles.avatar}>
                             <Text style={styles.avatarText}>👤</Text>
