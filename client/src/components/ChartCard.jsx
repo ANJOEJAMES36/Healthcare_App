@@ -1,12 +1,26 @@
 import PropTypes from 'prop-types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-const ChartCard = ({ title, data, dataKey, color }) => {
-    
-    // Formats the Unix timestamp into a readable time (e.g., "11:15:35 PM")
+// Default Y-axis domains for each vital metric
+export const METRIC_DOMAINS = {
+    temperature: [35, 42],
+    heartRate:   [40, 140],
+    spo2:        [90, 100],
+    bp:          [60, 180],
+};
+
+const ChartCard = ({ title, data, dataKey, color, domain, unit }) => {
+
     const formatTime = (unixTimestamp) => {
         return new Date(unixTimestamp).toLocaleTimeString();
     };
+
+    const formatTooltipValue = (value) => {
+        return unit ? `${value} ${unit}` : value;
+    };
+
+    // Derive a safe domain: use prop if provided, else look up by dataKey, else auto
+    const yDomain = domain || METRIC_DOMAINS[dataKey] || ['auto', 'auto'];
 
     return (
         <div style={{
@@ -21,16 +35,22 @@ const ChartCard = ({ title, data, dataKey, color }) => {
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                     <XAxis
                         dataKey="time"
-                        type="number"                      // 1. Forces a continuous mathematical scale
-                        scale="time"                       // 2. Optimizes the scale for time-series data
-                        domain={['dataMin', 'dataMax']}    // 3. Ensures the graph doesn't pad the edges with empty space
-                        tickFormatter={formatTime}         // 4. Converts the math number back to a readable string for the screen
+                        type="number"
+                        scale="time"
+                        domain={['dataMin', 'dataMax']}
+                        tickFormatter={formatTime}
                         stroke="var(--text-secondary)"
                         style={{ fontSize: '0.8em' }}
                     />
-                    <YAxis stroke="var(--text-secondary)" />
+                    <YAxis
+                        stroke="var(--text-secondary)"
+                        domain={yDomain}                   // ✅ Fixed: metric-specific Y range
+                        tickFormatter={(v) => unit ? `${v}${unit}` : v}
+                        width={55}                         // ✅ Prevents label clipping
+                    />
                     <Tooltip
-                        labelFormatter={formatTime}        // Formats the time in the hover tooltip too
+                        labelFormatter={formatTime}
+                        formatter={formatTooltipValue}     // ✅ Shows unit in hover tooltip
                         contentStyle={{
                             background: 'var(--bg-secondary)',
                             border: '1px solid var(--border-color)',
@@ -43,8 +63,8 @@ const ChartCard = ({ title, data, dataKey, color }) => {
                         dataKey={dataKey}
                         stroke={color}
                         strokeWidth={3}
-                        dot={false}                        // Tip: Set this to false for smoother real-time lines without chunky dots
-                        isAnimationActive={false}          // Tip: Disable animation for real-time charts to prevent jitter
+                        dot={false}
+                        isAnimationActive={false}
                     />
                 </LineChart>
             </ResponsiveContainer>
@@ -53,10 +73,17 @@ const ChartCard = ({ title, data, dataKey, color }) => {
 };
 
 ChartCard.propTypes = {
-    title: PropTypes.string.isRequired,
-    data: PropTypes.array.isRequired,
+    title:   PropTypes.string.isRequired,
+    data:    PropTypes.array.isRequired,
     dataKey: PropTypes.string.isRequired,
-    color: PropTypes.string.isRequired
+    color:   PropTypes.string.isRequired,
+    domain:  PropTypes.arrayOf(PropTypes.number), // optional override, e.g. [60, 180]
+    unit:    PropTypes.string,                    // optional, e.g. "bpm", "°C", "%"
+};
+
+ChartCard.defaultProps = {
+    domain: null,
+    unit: '',
 };
 
 export default ChartCard;

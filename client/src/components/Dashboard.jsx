@@ -142,10 +142,10 @@ const Dashboard = ({ viewingUserId, userName, onBack }) => {
                 gap: '20px',
                 marginBottom: '32px'
             }}>
-                <ChartCard title="🌡️ Temperature" data={chartData} dataKey="temperature" color="var(--accent-temperature)" />
-                <ChartCard title="❤️ Heart Rate" data={chartData} dataKey="heartRate" color="var(--accent-heart)" />
-                <ChartCard title="💧 SpO2" data={chartData} dataKey="spo2" color="var(--accent-spo2)" />
-                <ChartCard title="🩺 Blood Pressure" data={chartData} dataKey="bloodPressure" color="var(--accent-bp)" />
+                <ChartCard title="❤️ Heart Rate" dataKey="heartRate" color="#ff6b6b" unit="bpm" data={data} />
+                <ChartCard title="🌡️ Temperature" dataKey="temperature" color="#ffa94d" unit="°C" data={data} />
+                <ChartCard title="💧 SpO2" dataKey="spo2" color="#74c0fc" unit="%" data={data} />
+                <ChartCard title="🩺 Blood Pressure" dataKey="bp" color="#a9e34b" unit="mmHg" data={data} />
             </div>
 
             <DataTable messages={messages} />
