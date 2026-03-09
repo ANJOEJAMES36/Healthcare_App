@@ -30,12 +30,12 @@ export const useSocket = (userId = USER_ID) => {
 
         const resetLiveTimeout = () => {
             clearLiveTimeout();
-            // If no new data arrives in 15s, mark as no longer live
+            // If no new data arrives in 10s, mark as offline
             liveTimeoutRef.current = setTimeout(() => {
-                console.warn('⚠️ No MQTT data received for 15s — marking as not live');
+                console.warn('⚠️ No MQTT data received for 10s — marking as offline');
                 setIsLive(false);
-                setConnectionStatus('No Data');
-            }, 15000);
+                setConnectionStatus('Offline');
+            }, 10000);
         };
 
         socket.on('connect', () => {
@@ -43,6 +43,7 @@ export const useSocket = (userId = USER_ID) => {
             setConnectionStatus('Waiting for Data');
             setIsLive(false);
             socket.emit('join', userId);
+            resetLiveTimeout();
         });
 
         socket.on('connect_error', (err) => {
