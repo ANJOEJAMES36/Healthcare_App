@@ -3,6 +3,11 @@ const router = express.Router();
 const DataModel = require('../models/DataModel');
 const { TIME_RANGES, WARNING_THRESHOLDS } = require('../config/constants');
 
+// Get warning thresholds — must be BEFORE /:userId to avoid route conflict
+router.get('/thresholds', (req, res) => {
+    res.json(WARNING_THRESHOLDS);
+});
+
 // Get data by time range
 router.get('/:userId', async (req, res) => {
     try {
@@ -17,19 +22,14 @@ router.get('/:userId', async (req, res) => {
         }
 
         const startTime = new Date(Date.now() - TIME_RANGES[timeRange]);
-        console.log(`Fetching data from ${startTime} to now`);
 
-        // Query for matching userId OR records without userId (for backwards compatibility)
+        // Only query by exact userId — no backwards compat fallback
         const data = await DataModel.find({
-            $or: [
-                { userId: userId },
-                { userId: { $exists: false } },
-                { userId: null }
-            ],
+            userId,
             timestamp: { $gte: startTime }
-        }).sort({ timestamp: 1 });
+        }).sort({ timestamp: 1 }).lean();
 
-        console.log(`Returned ${data.length} records for ${timeRange} range`);
+        console.log(`Returned ${data.length} records for ${userId} / ${timeRange}`);
         res.json(data);
     } catch (error) {
         console.error('Error fetching data:', error);
@@ -37,11 +37,13 @@ router.get('/:userId', async (req, res) => {
     }
 });
 
-// Get latest values
+// Get latest value for a user
 router.get('/:userId/latest', async (req, res) => {
     try {
         const { userId } = req.params;
-        const latest = await DataModel.findOne({ userId }).sort({ timestamp: -1 });
+        const latest = await DataModel.findOne({ userId })
+            .sort({ timestamp: -1 })
+            .lean();
         res.json(latest || {});
     } catch (error) {
         console.error('Error fetching latest:', error);
@@ -49,19 +51,13 @@ router.get('/:userId/latest', async (req, res) => {
     }
 });
 
-// Get warning thresholds
-router.get('/thresholds', (req, res) => {
-    res.json(WARNING_THRESHOLDS);
-});
-
-// ONE-TIME MIGRATION: Update all records without userId to have default userId
+// ONE-TIME MIGRATION
 router.post('/migrate/add-userid', async (req, res) => {
     try {
         const result = await DataModel.updateMany(
             { $or: [{ userId: { $exists: false } }, { userId: null }] },
             { $set: { userId: 'user1' } }
         );
-
         console.log(`Migration complete: Updated ${result.modifiedCount} records`);
         res.json({
             success: true,
