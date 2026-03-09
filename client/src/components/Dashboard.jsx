@@ -64,7 +64,7 @@ const Dashboard = ({ viewingUserId, userName, onBack }) => {
             .catch(err => console.error('Error fetching thresholds:', err));
     }, []);
 
-    const chartData = formatChartData(messages, selectedRange);
+    const chartData = formatChartData(messages);
 
     return (
         <div style={{
@@ -142,10 +142,10 @@ const Dashboard = ({ viewingUserId, userName, onBack }) => {
                 gap: '20px',
                 marginBottom: '32px'
             }}>
-                <ChartCard title="❤️ Heart Rate" dataKey="heartRate" color="#ff6b6b" unit="bpm" data={data} />
-                <ChartCard title="🌡️ Temperature" dataKey="temperature" color="#ffa94d" unit="°C" data={data} />
-                <ChartCard title="💧 SpO2" dataKey="spo2" color="#74c0fc" unit="%" data={data} />
-                <ChartCard title="🩺 Blood Pressure" dataKey="bp" color="#a9e34b" unit="mmHg" data={data} />
+                <ChartCard title="❤️ Heart Rate" dataKey="heartRate" color="#ff6b6b" unit="bpm" data={chartData} />
+                <ChartCard title="🌡️ Temperature" dataKey="temperature" color="#ffa94d" unit="°C" data={chartData} />
+                <ChartCard title="💧 SpO2" dataKey="spo2" color="#74c0fc" unit="%" data={chartData} />
+                <ChartCard title="🩺 Blood Pressure" dataKey="bloodPressure" color="#a9e34b" unit="mmHg" data={chartData} />
             </div>
 
             <DataTable messages={messages} />

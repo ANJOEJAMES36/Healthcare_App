@@ -1,7 +1,7 @@
 /**
- * Format chart data with intelligent sampling and time formatting
+ * Format chart data with intelligent sampling
  */
-export const formatChartData = (messages, selectedRange) => {
+export const formatChartData = (messages) => {
     if (!messages || messages.length === 0) return [];
 
     const dataPointsTarget = 100;
@@ -13,18 +13,8 @@ export const formatChartData = (messages, selectedRange) => {
 
     return sampledData.map(msg => {
         const date = new Date(msg.timestamp);
-        let timeLabel;
-
-        if (selectedRange === '10min' || selectedRange === '30min') {
-            timeLabel = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        } else if (selectedRange === '1hr' || selectedRange === '4hr') {
-            timeLabel = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-        } else {
-            timeLabel = date.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-        }
-
         return {
-            time: timeLabel,
+            time: date.getTime(),          // numeric Unix ms — ChartCard tickFormatter handles display
             temperature: msg.temperature ?? null,
             heartRate: msg.heartRate ?? null,
             spo2: msg.spo2 ?? null,
