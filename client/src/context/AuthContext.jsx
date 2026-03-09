@@ -6,15 +6,24 @@ const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [token, setToken] = useState(localStorage.getItem('token'));
+    const [isLoading, setIsLoading] = useState(true); // add loading state
 
     useEffect(() => {
         if (token) {
-            // In a real app, verify token with backend here
             const storedUser = localStorage.getItem('user');
             if (storedUser) {
-                setUser(JSON.parse(storedUser));
+                try {
+                    setUser(JSON.parse(storedUser));
+                } catch (err) {
+                    // Corrupted data in localStorage — clear it
+                    console.error('Failed to parse stored user:', err);
+                    localStorage.removeItem('user');
+                    localStorage.removeItem('token');
+                    setToken(null);
+                }
             }
         }
+        setIsLoading(false);
     }, [token]);
 
     const login = (userData, authToken) => {
@@ -32,7 +41,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, token, login, logout }}>
+        <AuthContext.Provider value={{ user, token, login, logout, isLoading }}>
             {children}
         </AuthContext.Provider>
     );

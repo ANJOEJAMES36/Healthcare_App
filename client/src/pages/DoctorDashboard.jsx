@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import Header from '../components/Header';
 import Dashboard from '../components/Dashboard';
+import { useAuth } from '../context/AuthContext';
 
 const DoctorDashboard = () => {
     const [selectedUser, setSelectedUser] = useState(null);
+    const { logout } = useAuth(); // get logout from auth context
+
     const users = [
         { id: 'user1', name: 'User 1' },
         { id: 'user2', name: 'User 2' }
@@ -25,10 +28,16 @@ const DoctorDashboard = () => {
             background: 'linear-gradient(135deg, #0f0f1e 0%, #1a1a2e 100%)',
             padding: '20px'
         }}>
-            <Header userName="Dr. Smith" connectionStatus="Connected" />
+            <Header
+                userName="Dr. Smith"
+                connectionStatus="Connected"
+                onLogout={logout} // pass logout to header
+            />
 
             <div style={{ maxWidth: '800px', margin: '0 auto', paddingTop: '40px' }}>
-                <h2 style={{ color: 'white', marginBottom: '30px', textAlign: 'center' }}>Select Patient to Monitor</h2>
+                <h2 style={{ color: 'white', marginBottom: '30px', textAlign: 'center' }}>
+                    Select Patient to Monitor
+                </h2>
 
                 <div style={{ display: 'grid', gap: '20px' }}>
                     {users.map(user => (
@@ -76,10 +85,7 @@ const DoctorDashboard = () => {
                                     <p style={{ margin: '8px 0 0', color: 'var(--text-secondary)' }}>ID: {user.id}</p>
                                 </div>
                             </div>
-                            <div style={{
-                                color: 'var(--success)',
-                                fontWeight: 'bold'
-                            }}>
+                            <div style={{ color: 'var(--success)', fontWeight: 'bold' }}>
                                 View Dashboard →
                             </div>
                         </div>

@@ -7,12 +7,14 @@ const LoginPage = () => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [isLoading, setIsLoading] = useState(false); // add loading state
     const { login } = useAuth();
     const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+        setIsLoading(true);
 
         try {
             const response = await fetch(`${API_URL}/api/auth/login`, {
@@ -29,7 +31,6 @@ const LoginPage = () => {
 
             login(data.user, data.token);
 
-            // Redirect based on role
             if (data.user.role === 'doctor') {
                 navigate('/doctor');
             } else {
@@ -37,6 +38,8 @@ const LoginPage = () => {
             }
         } catch (err) {
             setError(err.message);
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -91,6 +94,8 @@ const LoginPage = () => {
                             type="text"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
+                            required
+                            disabled={isLoading}
                             style={{
                                 width: '100%',
                                 padding: '12px',
@@ -98,7 +103,8 @@ const LoginPage = () => {
                                 border: '1px solid rgba(255, 255, 255, 0.1)',
                                 background: 'rgba(0, 0, 0, 0.2)',
                                 color: 'white',
-                                outline: 'none'
+                                outline: 'none',
+                                boxSizing: 'border-box'
                             }}
                             placeholder="Enter your ID"
                         />
@@ -111,6 +117,8 @@ const LoginPage = () => {
                             type="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
+                            required
+                            disabled={isLoading}
                             style={{
                                 width: '100%',
                                 padding: '12px',
@@ -118,24 +126,31 @@ const LoginPage = () => {
                                 border: '1px solid rgba(255, 255, 255, 0.1)',
                                 background: 'rgba(0, 0, 0, 0.2)',
                                 color: 'white',
-                                outline: 'none'
+                                outline: 'none',
+                                boxSizing: 'border-box'
                             }}
                             placeholder="Enter password"
                         />
                     </div>
-                    <button type="submit" style={{
-                        width: '100%',
-                        padding: '14px',
-                        borderRadius: '12px',
-                        border: 'none',
-                        background: 'linear-gradient(90deg, #4361ee, #06ffa5)',
-                        color: 'white',
-                        fontSize: '1.1em',
-                        fontWeight: 'bold',
-                        cursor: 'pointer',
-                        transition: 'transform 0.2s'
-                    }}>
-                        Login
+                    <button
+                        type="submit"
+                        disabled={isLoading}
+                        style={{
+                            width: '100%',
+                            padding: '14px',
+                            borderRadius: '12px',
+                            border: 'none',
+                            background: isLoading
+                                ? 'rgba(255,255,255,0.1)'
+                                : 'linear-gradient(90deg, #4361ee, #06ffa5)',
+                            color: 'white',
+                            fontSize: '1.1em',
+                            fontWeight: 'bold',
+                            cursor: isLoading ? 'not-allowed' : 'pointer',
+                            transition: 'transform 0.2s'
+                        }}
+                    >
+                        {isLoading ? 'Logging in...' : 'Login'}
                     </button>
                 </form>
             </div>

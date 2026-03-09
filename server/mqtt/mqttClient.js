@@ -3,63 +3,114 @@ const DataModel = require('../models/DataModel');
 
 let mqttClient = null;
 
+const VALID_USERS = ['user1', 'user2'];
+
 const setupMQTT = (io) => {
     const MQTT_BROKER_URL = process.env.MQTT_BROKER_URL;
     const MQTT_TOPIC = process.env.MQTT_TOPIC || 'esp32/health/data';
+
+    if (!MQTT_BROKER_URL) {
+        console.error('MQTT_BROKER_URL is not set in environment variables');
+        return null;
+    }
 
     const MQTT_OPTIONS = {
         username: process.env.MQTT_USERNAME,
         password: process.env.MQTT_PASSWORD,
         protocol: 'mqtts',
         port: parseInt(process.env.MQTT_PORT || '8883'),
-        rejectUnauthorized: true
+        rejectUnauthorized: true,
+        reconnectPeriod: 5000,   // retry every 5s if disconnected
+        connectTimeout: 30000,   // 30s connection timeout
     };
 
     mqttClient = mqtt.connect(MQTT_BROKER_URL, MQTT_OPTIONS);
 
     mqttClient.on('connect', () => {
-        console.log(`Connected to MQTT Broker: ${MQTT_BROKER_URL}`);
-        mqttClient.subscribe(MQTT_TOPIC, (err) => {
+        console.log(`✅ Connected to MQTT Broker: ${MQTT_BROKER_URL}`);
+        mqttClient.subscribe(MQTT_TOPIC, { qos: 1 }, (err) => {
             if (!err) {
-                console.log(`Subscribed to topic: ${MQTT_TOPIC}`);
+                console.log(`✅ Subscribed to topic: ${MQTT_TOPIC}`);
             } else {
-                console.error('Failed to subscribe:', err);
+                console.error('❌ Failed to subscribe:', err);
             }
         });
+    });
+
+    mqttClient.on('reconnect', () => {
+        console.log('🔄 Reconnecting to MQTT Broker...');
+    });
+
+    mqttClient.on('offline', () => {
+        console.warn('⚠️ MQTT client is offline');
+    });
+
+    mqttClient.on('close', () => {
+        console.warn('⚠️ MQTT connection closed');
     });
 
     mqttClient.on('message', async (topic, message) => {
         try {
             const msgString = message.toString();
-            console.log(`Received message: ${msgString}`);
+            console.log(`📨 Received on [${topic}]: ${msgString}`);
 
-            // Expecting JSON: {"temperature": 36.5, "heartRate": 70, "spo2": 97.0, "bloodPressure": 120, "userId": "user1"}
-            const parsedData = JSON.parse(msgString);
+            // Parse JSON
+            let parsedData;
+            try {
+                parsedData = JSON.parse(msgString);
+            } catch (parseErr) {
+                console.error('❌ Invalid JSON received:', msgString);
+                return;
+            }
 
+            // Validate userId
+            const userId = parsedData.userId;
+            if (!userId || !VALID_USERS.includes(userId)) {
+                console.warn(`⚠️ Rejected message — unknown userId: "${userId}"`);
+                return;
+            }
+
+            // Validate required fields
+            if (
+                parsedData.temperature === undefined ||
+                parsedData.heartRate === undefined ||
+                parsedData.spo2 === undefined
+            ) {
+                console.warn(`⚠️ Rejected message — missing required fields:`, parsedData);
+                return;
+            }
+
+            // Save to MongoDB
             const newData = new DataModel({
-                userId: parsedData.userId || 'user1',
+                userId,
                 temperature: parsedData.temperature,
                 heartRate: parsedData.heartRate,
                 spo2: parsedData.spo2,
-                bloodPressure: parsedData.bloodPressure || 120
+                bloodPressure: parsedData.bloodPressure || 120,
+                timestamp: parsedData.timestamp ? new Date(parsedData.timestamp) : new Date()
             });
 
             const savedData = await newData.save();
-            console.log('Saved to MongoDB:', savedData);
+            console.log(`💾 Saved data for ${userId}:`, savedData);
 
-            // Broadcast to frontend via Socket.io
-            io.emit('mqtt-message', savedData);
+            // Emit to user's personal room only
+            io.to(userId).emit('mqtt-message', savedData);
+
+            // Also broadcast to admins if needed
+            io.to('admin').emit('mqtt-message', savedData);
 
         } catch (error) {
-            console.error('Error processing message:', error);
+            console.error('❌ Error processing MQTT message:', error);
         }
     });
 
     mqttClient.on('error', (error) => {
-        console.error('MQTT Error:', error);
+        console.error('❌ MQTT Error:', error);
     });
 
     return mqttClient;
 };
 
-module.exports = { setupMQTT };
+const getMQTTClient = () => mqttClient;
+
+module.exports = { setupMQTT, getMQTTClient };

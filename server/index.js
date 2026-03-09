@@ -13,7 +13,6 @@ const { setupMQTT } = require('./mqtt/mqttClient');
 
 const app = express();
 
-// CORS - allow all origins (customize in production)
 app.use(cors({
     origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -29,23 +28,23 @@ const io = new Server(server, {
         origin: '*',
         methods: ['GET', 'POST']
     },
-    transports: ['websocket', 'polling'],  // websocket first, fallback to polling
-    pingTimeout: 60000,    // 60s before considering connection dead
-    pingInterval: 25000,   // ping every 25s to keep alive
+    transports: ['websocket', 'polling'],
+    pingTimeout: 60000,
+    pingInterval: 25000,
 });
 
 // Connect to MongoDB and Seed Users
 connectDatabase()
     .then(() => {
-        console.log('Database connected successfully');
+        console.log('✅ Database connected successfully');
         seedUsers();
     })
     .catch((err) => {
-        console.error('Database connection failed:', err);
-        process.exit(1); // exit if DB fails — Render will restart automatically
+        console.error('❌ Database connection failed:', err);
+        process.exit(1);
     });
 
-// Health check endpoint (important for Render — keeps service alive)
+// Health check endpoint
 app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
@@ -66,35 +65,71 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: 'Internal server error' });
 });
 
-// Setup MQTT (after routes)
+// Setup MQTT
 setupMQTT(io);
 
 // Socket.io connection handler
 io.on('connection', async (socket) => {
-    console.log(`User connected: ${socket.id}`);
+    console.log(`✅ User connected: ${socket.id}`);
 
-    // Send last 50 records on connection (for initial load)
-    try {
-        const historicalData = await DataModel.find()
-            .sort({ timestamp: -1 })
-            .limit(50)
-            .lean(); // .lean() returns plain JS objects — faster
-        socket.emit('initial-data', historicalData);
-    } catch (err) {
-        console.error('Error fetching history:', err);
-        socket.emit('error', { message: 'Failed to fetch historical data' });
+    // Get userId from handshake query
+    const userId = socket.handshake.query.userId;
+
+    if (userId) {
+        // Join personal room so they only receive their own data
+        socket.join(userId);
+        console.log(`🔐 Socket ${socket.id} joined room: ${userId}`);
+
+        // Send last 50 records for THIS user only
+        try {
+            const historicalData = await DataModel.find({ userId })
+                .sort({ timestamp: -1 })
+                .limit(50)
+                .lean();
+            socket.emit('initial-data', historicalData);
+            console.log(`📦 Sent ${historicalData.length} historical records to ${userId}`);
+        } catch (err) {
+            console.error('❌ Error fetching history:', err);
+            socket.emit('error', { message: 'Failed to fetch historical data' });
+        }
+    } else {
+        console.warn(`⚠️ Socket ${socket.id} connected without userId`);
+
+        // Send last 50 records without user filter as fallback
+        try {
+            const historicalData = await DataModel.find()
+                .sort({ timestamp: -1 })
+                .limit(50)
+                .lean();
+            socket.emit('initial-data', historicalData);
+        } catch (err) {
+            console.error('❌ Error fetching history:', err);
+            socket.emit('error', { message: 'Failed to fetch historical data' });
+        }
     }
 
+    // Allow client to explicitly join a room after connection
+    socket.on('join', (roomUserId) => {
+        socket.join(roomUserId);
+        console.log(`🔐 Socket ${socket.id} joined room: ${roomUserId}`);
+    });
+
+    // Allow client to join admin room
+    socket.on('join-admin', () => {
+        socket.join('admin');
+        console.log(`🛡️ Socket ${socket.id} joined admin room`);
+    });
+
     socket.on('disconnect', (reason) => {
-        console.log(`User disconnected: ${socket.id} — reason: ${reason}`);
+        console.log(`❌ User disconnected: ${socket.id} — reason: ${reason}`);
     });
 
     socket.on('error', (err) => {
-        console.error(`Socket error for ${socket.id}:`, err);
+        console.error(`❌ Socket error for ${socket.id}:`, err);
     });
 });
 
-// Graceful shutdown (handles Render restarts cleanly)
+// Graceful shutdown
 process.on('SIGTERM', () => {
     console.log('SIGTERM received. Shutting down gracefully...');
     server.close(() => {
@@ -111,8 +146,7 @@ process.on('SIGINT', () => {
     });
 });
 
-// Use Render's PORT env variable — critical!
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log(`🚀 Server running on port ${PORT}`);
 });
