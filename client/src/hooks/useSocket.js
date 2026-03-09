@@ -40,7 +40,7 @@ export const useSocket = (userId = USER_ID) => {
 
         socket.on('connect', () => {
             console.log(`✅ Connected to backend as ${userId}`);
-            setConnectionStatus('Connected');
+            setConnectionStatus('Waiting for Data');
             setIsLive(false);
             socket.emit('join', userId);
         });
@@ -67,8 +67,8 @@ export const useSocket = (userId = USER_ID) => {
         });
 
         socket.on('initial-data', (data) => {
-            console.log(`📦 Initial data received: ${data.length} records`);
-            if (data && data.length > 0) {
+            console.log(`📦 Initial data received: ${data ? data.length : 0} records`);
+            if (data) {
                 setMessages(data);
             }
         });

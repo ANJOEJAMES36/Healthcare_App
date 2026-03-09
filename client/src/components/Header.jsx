@@ -7,6 +7,8 @@ const getStatusConfig = (status) => {
             return { bg: 'rgba(6, 255, 165, 0.1)', border: 'var(--success)', color: 'var(--success)', dot: '🟢', label: 'Live' };
         case 'Connected':
             return { bg: 'rgba(255, 210, 63, 0.1)', border: 'var(--warning)', color: 'var(--warning)', dot: '🟡', label: 'Connected' };
+        case 'Waiting for Data':
+            return { bg: 'rgba(255, 210, 63, 0.1)', border: 'var(--warning)', color: 'var(--warning)', dot: '🟡', label: 'Waiting for Data' };
         case 'No Data':
             return { bg: 'rgba(255, 140, 0, 0.1)', border: 'orange', color: 'orange', dot: '🟠', label: 'No Data' };
         case 'Reconnecting...':
