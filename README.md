@@ -41,7 +41,7 @@ A comprehensive, real-time health monitoring system designed for patients, docto
 3. **Backend Server (Node.js)**: Subscribes to MQTT topics, persists data to MongoDB, and broadcasts changes to web/mobile clients over WebSockets.
 4. **Frontends (React & React Native)**: Consume secure REST APIs for historical data and WebSockets for sub-second live updates.
 
-```
+```text
 ESP32 → HiveMQ Cloud → Node.js (Auth/Data) → MongoDB Atlas
                                     ↓ (Socket.io)
             ┌───────────────────────┴───────────────────────┐
@@ -52,27 +52,58 @@ ESP32 → HiveMQ Cloud → Node.js (Auth/Data) → MongoDB Atlas
 
 ---
 
-## 🛠️ Tech Stack
+## 💻 Important Files & Code Explanation
 
-### Backend (`/server`)
-- **Runtime**: Node.js & Express.js
-- **Database**: MongoDB Atlas (Mongoose OMD)
-- **Real-Time**: Socket.io & MQTT.js
-- **Security**: jsonwebtoken, bcryptjs, cors, dotenv
+Understanding the core files of this repository will help you navigate the system effortlessly.
 
-### Web Frontend (`/client`)
-- **Framework**: React 18, Vite
-- **Routing**: React Router DOM
-- **Visualization**: Recharts for dynamic time-series graphing
-- **Real-Time**: socket.io-client
-- **Utils**: qrcode.react (QR generation)
+### 🏢 Backend (`/server`)
 
-### Mobile App (`/mobile`)
-- **Framework**: React Native & Expo
-- **Navigation**: React Navigation (Native Stack)
-- **Visualization**: react-native-chart-kit
-- **Native Modules**: expo-camera (QR Scanning), AsyncStorage
-- **Real-Time**: socket.io-client, axios
+- **`server/index.js` (Main Entry Point)**
+  - This is the core of the backend server.
+  - **Responsibilities:**
+    - Initializes the **Express** HTTP server and **Socket.io** WebSocket server.
+    - Connects to the **MongoDB Database**.
+    - Mounts REST API routes (`/api/auth`, `/api/data`).
+    - Configures Socket.io connection logic: when a user connects, it identifies them from query parameters, joins them to a private Socket room (e.g., `room: user1`), and automatically sends them their 50 most recent historical records.
+    - Gracefully handles server shutdowns (SIGTERM, SIGINT).
+
+- **`server/mqtt/mqttClient.js` (IoT Ingestion)**
+  - Acts as the bridge between the hardware edge devices and the web/mobile platforms.
+  - **Responsibilities:**
+    - Connects to the **HiveMQ MQTT Broker** using secure credentials.
+    - Subscribes to the designated IoT topic (e.g., `esp32/health/data`).
+    - **Message Event Handler:** Intercepts incoming JSON payloads from the ESP32. It validates the user ID and data requirements, saves the valid data directly into MongoDB via `DataModel`, and then instantly broadcasts the plain data via `io.to(userId).emit('mqtt-message')` straight to the connected web/mobile clients in real time.
+
+- **`server/routes/authRoutes.js` & `dataRoutes.js` (REST APIs)**
+  - `authRoutes.js`: Handles POST requests for login and user registration. Issues JWT (JSON Web Tokens) for authenticated clients.
+  - `dataRoutes.js`: Handles GET requests to provide historical data points to the clients allowing chart data backfilling by selected time offsets.
+
+### 💻 Web App (`/client`)
+
+- **`client/src/App.jsx` (Frontend Entry Router)**
+  - Sets up the React routing architecture.
+  - Uses a `<ProtectedRoute />` wrapper that checks the `AuthContext` to ensure the user holds a valid JWT token.
+  - Automatically redirects users to the correct dashboard based on their role (`doctor` vs `user`).
+
+- **`client/src/context/AuthContext.jsx` (Global State)**
+  - A React Context API wrapper providing globally accessible state variables like `user`, `token`, and functions `login()` and `logout()`. Persists sessions using `localStorage`.
+
+- **`client/src/hooks/useSocket.js` (Real-time Custom Hook)**
+  - A critical React Hook abstracting real-time communication.
+  - It connects to the backend Socket.io server passing the user's ID to join their specific data room.
+  - Listens for `initial-data` (on mount) and `mqtt-message` (live updates), managing state arrays that power the frontend charts.
+  - Features reconnect logic and error handling to ensure seamless connectivity.
+
+### 📱 Mobile App (`/mobile`)
+
+- **`mobile/App.js` (Mobile Entry & Navigation)**
+  - The root file wrapping the React Native app.
+  - Built with `@react-navigation/native-stack`, creating a native routing hierarchy for 5 primary screens: `Login`, `Scanner`, `UserDashboard`, `DoctorDashboard`, and `BystanderDashboard`.
+  - Hides native headers in favor of custom-styled immersive darker themes (`#0f0f1e`).
+
+- **`mobile/src/screens/...` (The View Controllers)**
+  - **`ScannerScreen.js`**: Interacts with the native `expo-camera` to scan QR codes.
+  - **`BystanderDashboard.js`**: Accepts a user ID (e.g., from the QR code scanner) and connects to a temporary socket stream, rendering live metric charts identically to authenticated paths without requiring permanent login.
 
 ---
 
@@ -111,38 +142,6 @@ cd mobile
 npm install
 npm start
 # Use the Expo Go app on your phone to scan the QR code and launch the app
-```
-
----
-
-## 📁 Project Structure
-
-```text
-Project_EC/
-├── server/                 # Node.js backend infrastructure
-│   ├── config/             # Database and threshold configs
-│   ├── models/             # Mongoose schemas (User, Doctor, Data)
-│   ├── mqtt/               # MQTT client for HiveMQ ingestion
-│   ├── routes/             # Express API routers
-│   └── utils/              # Database seeders and formatters
-│
-├── client/                 # React Web Application
-│   ├── src/
-│   │   ├── components/     # Reusable UI components (MetricCard, ChartCard)
-│   │   ├── context/        # React Context for Global Auth State
-│   │   ├── hooks/          # Custom hooks (useSocket, useHealthData)
-│   │   ├── pages/          # Full page views (Login, Dashboards)
-│   │   └── utils/          # Data formatting and styling utilities
-│   └── vite.config.js      # Build config
-│
-└── mobile/                 # React Native Mobile App
-    ├── src/
-    │   ├── components/     # Native UI elements
-    │   ├── navigation/     # AppRouter configurations
-    │   ├── screens/        # LoginTracker, Patient Dashboard, QR Scanner
-    │   └── services/       # Axios API and Socket managers
-    ├── App.js              # Native entrypoint
-    └── app.json            # Expo config
 ```
 
 ---
