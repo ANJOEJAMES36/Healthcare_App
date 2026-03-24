@@ -28,9 +28,9 @@ const setupMQTT = (io) => {
 
     mqttClient.on('connect', () => {
         console.log(`✅ Connected to MQTT Broker: ${MQTT_BROKER_URL}`);
-        mqttClient.subscribe(MQTT_TOPIC, { qos: 1 }, (err) => {
+        mqttClient.subscribe([MQTT_TOPIC, 'health/#'], { qos: 1 }, (err) => {
             if (!err) {
-                console.log(`✅ Subscribed to topic: ${MQTT_TOPIC}`);
+                console.log(`✅ Subscribed to topics: ${MQTT_TOPIC} and health/#`);
             } else {
                 console.error('❌ Failed to subscribe:', err);
             }
@@ -61,6 +61,23 @@ const setupMQTT = (io) => {
             } catch (parseErr) {
                 console.error('❌ Invalid JSON received:', msgString);
                 return;
+            }
+
+            // Map ESP32 payload format to standard
+            if (parsedData.id !== undefined && !parsedData.userId) {
+                parsedData.userId = parsedData.id === 1 ? 'user1' : (parsedData.id === 2 ? 'user2' : 'unknown');
+            }
+            if (parsedData.temp !== undefined && parsedData.temperature === undefined) {
+                parsedData.temperature = parseFloat(parsedData.temp);
+            }
+            if (parsedData.hr !== undefined && parsedData.heartRate === undefined) {
+                parsedData.heartRate = parseInt(parsedData.hr);
+            }
+            if (parsedData.motion && typeof parsedData.motion === 'string') {
+                const m = parsedData.motion.toLowerCase();
+                if (m === 'still') parsedData.motion = 'sit';
+                else if (m === 'move') parsedData.motion = 'walk';
+                else parsedData.motion = m;
             }
 
             // Validate userId
