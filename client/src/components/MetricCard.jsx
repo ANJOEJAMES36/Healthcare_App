@@ -2,7 +2,7 @@ import PropTypes from 'prop-types';
 import { getWarningStatus, getStatusColor } from '../utils/formatters';
 
 // Map motion strings to display labels
-const MOTION_DISPLAY = { sit: '🪑 Sit', walk: '🚶 Walk', sleep: '😴 Sleep' };
+const MOTION_DISPLAY = { sit: '🪑 Still', walk: '🚶 Motion', sleep: '😴 Sleep' };
 
 const MetricCard = ({ title, value, unit, emoji, accentColor, metric, thresholds, isOffline }) => {
     const status = typeof value === 'number' ? getWarningStatus(value, metric, thresholds) : 'normal';
